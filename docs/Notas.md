@@ -3,6 +3,12 @@
 ## 2026-02-25
 La profesora nos explicó que el sistema debe incluir un banco de proyectos con el listado de proyectos disponibles y en proceso. Además, se planteó permitir que empresas, docentes o proyectos sociales postulen sus propuestas mediante un formato más flexible que el actual, del cual se nos mostró un documento de ejemplo.
 El profesor nos dio especificaciones técnicas, como que el programa debe ser web, el back-end se debe desarrollar con NestJS, el front-end con NextJS, usar PostgreSQL como base de datos y que todo el programa se pueda montar el una infraestructura fácilmente usando Docker.
+
+- Utilizar Arquitectura Hexagonal.
+- NextJS para el front-end con NestJS para el backend.
+- Debe ser funcional con contenedores.
+- Postgress como base de datos.
+
 Además el profesor nos dijo que la siguiente semana se podría hacer una reunión con todo el equipo y los profesores responsables para concretar completamente como debería de ser el sistema.
 
 ## 2026-02-26

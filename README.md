@@ -10,9 +10,3 @@ Estudiantes:
 - Josue Annicchiarico Correa
 - Alejandro Duarte García
 
-# Notas Generales
-- Utilizar Arquitectura Hexagonal.
-- NextJS para el front-end con NestJS para el backend.
-- Debe ser funcional con contenedores.
-- Postgress como base de datos.
-
