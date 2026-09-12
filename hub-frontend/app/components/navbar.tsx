@@ -2,89 +2,98 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "./auth-provider";
+// import { useAuth } from "./auth-provider";
+import { AuthNav } from "./auth-nav";
+
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu"
+
+const components: { title: string; href: string; description: string }[] = [
+  {
+    title: "Persona Natural",
+    href: "/submit/natural",
+    description:
+      "Persona Natural...",
+  },
+  {
+    title: "Persona Jurídica",
+    href: "#",
+    description:
+      "Persona Jurídica...",
+  },
+]
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { session, isAuthenticated, ready, logout } = useAuth();
-
-  const roleLabels: Record<string, string> = {
-    admin: "Administrador",
-    evaluator: "Evaluador",
-    coordinator: "Coordinador",
-    advisor: "Asesor",
-    student: "Estudiante",
-  };
-
-  const userRoles = (session?.user.roles ?? [])
-    .map((role) => roleLabels[role] ?? role)
-    .join(", ");
-
-  const isActive = (href: string) => pathname === href;
 
   return (
-    <nav className="border-b border-slate-200 bg-blue-700 shadow-sm">
-      <div className="mx-auto flex w-full max-w-5xl items-center gap-8 px-6 py-4 sm:px-10 lg:px-12">
+    <nav className="border-b border-slate-200 bg-white shadow-sm">
+      <div className="mx-auto flex w-full max-w-5xl items-center gap-4 px-6 py-3 sm:px-10 lg:px-12">
         <Link
           href="/"
-          className={`text-lg font-semibold transition ${
-            isActive("/") ? "text-white" : "text-gray-50"
+          className={`shrink-0 text-lg font-semibold tracking-tight ${
+            pathname === "/" ? "text-slate-950" : "text-slate-700"
           }`}
         >
           CapstoneHUB
         </Link>
 
-        <Link
-          href="/projects"
-          className={`text-sm font-medium transition ${
-            isActive("/projects")
-              ? "text-white border-b-2 border-white"
-              : "text-gray-50"
-          }`}
-        >
-          Proyectos
-        </Link>
+        <NavigationMenu className="min-w-0 max-w-none">
+          <NavigationMenuList>
 
-        <Link
-          href="/submit"
-          className={`text-sm font-medium transition ${
-            isActive("/submit")
-              ? "text-white border-b-2 border-white"
-              : "text-gray-50"
-          }`}
-        >
-          Proponer
-        </Link>
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                render={<Link href="/projects">Proyectos</Link>}
+              />
+            </NavigationMenuItem>
 
-        <div className="ml-auto flex items-center gap-3">
-          {!ready ? (
-            <span className="text-sm text-white">Cargando...</span>
-          ) : isAuthenticated ? (
-            <>
-              <span className="hidden text-right text-sm text-white sm:inline">
-                <span className="block font-medium">{session?.user.fullName}</span>
-                <span className="block text-blue-100">
-                  {userRoles || "Sin rol asignado"}
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={logout}
-                className="inline-flex items-center justify-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-              >
-                Cerrar sesión
-              </button>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
-            >
-              Iniciar sesión
-            </Link>
-          )}
-        </div>
+            <NavigationMenuItem className="hidden md:flex">
+              <NavigationMenuTrigger>Proponer</NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <ul className="grid w-400px gap-2 md:w-500px md:grid-cols-2 lg:w-600px">
+                  {components.map((component) => (
+                    <ListItem
+                      key={component.title}
+                      title={component.title}
+                      href={component.href}
+                    >
+                      {component.description}
+                    </ListItem>
+                  ))}
+                </ul>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+
+            <NavigationMenuItem>
+              <NavigationMenuLink render={<Link href="#">Acerca de</Link>} />
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
+
+        <AuthNav />
       </div>
     </nav>
-  );
+  )
+}
+
+function ListItem({
+  title,
+  children,
+  href,
+  ...props
+}: React.ComponentPropsWithoutRef<"li"> & { href: string }) {
+  return (
+    <li {...props}>
+      <NavigationMenuLink render={<Link href={href}><div className="flex flex-col gap-1 text-sm">
+          <div className="leading-none font-medium">{title}</div>
+          <div className="line-clamp-2 text-muted-foreground">{children}</div>
+        </div></Link>} />
+    </li>
+  )
 }
