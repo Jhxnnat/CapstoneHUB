@@ -13,7 +13,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import {
   MilestonesService,
-  ProjectMilestoneResponse,
+  SelectedMilestone,
 } from './milestones.service';
 import { CreateMilestoneDto, UpdateMilestoneDto } from './milestones.dto';
 
@@ -26,7 +26,7 @@ export class MilestonesController {
   getProjectMilestones(
     @Param('projectId') projectId: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<ProjectMilestoneResponse[]> {
+  ): Promise<SelectedMilestone[]> {
     return this.milestonesService.milestonesByProject(Number(projectId), user);
   }
 
@@ -35,7 +35,7 @@ export class MilestonesController {
     @Param('projectId') projectId: string,
     @Body() data: CreateMilestoneDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<ProjectMilestoneResponse> {
+  ): Promise<SelectedMilestone> {
     return this.milestonesService.createMilestone({
       projectId: Number(projectId),
       data,
@@ -49,7 +49,7 @@ export class MilestonesController {
     @Param('milestoneId') milestoneId: string,
     @Body() data: UpdateMilestoneDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<ProjectMilestoneResponse> {
+  ): Promise<SelectedMilestone> {
     return this.milestonesService.updateMilestone({
       projectId: Number(projectId),
       milestoneId: Number(milestoneId),
@@ -63,7 +63,7 @@ export class MilestonesController {
     @Param('projectId') projectId: string,
     @Param('milestoneId') milestoneId: string,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<ProjectMilestoneResponse> {
+  ): Promise<SelectedMilestone> {
     return this.milestonesService.deleteMilestone({
       projectId: Number(projectId),
       milestoneId: Number(milestoneId),

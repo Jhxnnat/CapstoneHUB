@@ -19,13 +19,13 @@ const milestoneSelect = {
   createdAt: true,
 } as const;
 
-type SelectedMilestone = Prisma.ProjectMilestonesGetPayload<{
+export type SelectedMilestone = Prisma.ProjectMilestonesGetPayload<{
   select: typeof milestoneSelect;
 }>;
 
-export type ProjectMilestoneResponse = SelectedMilestone;
+// export type ProjectMilestoneResponse = SelectedMilestone;
 
-function mapMilestone(milestone: SelectedMilestone): ProjectMilestoneResponse {
+function mapMilestone(milestone: SelectedMilestone): SelectedMilestone {
   return milestone;
 }
 
@@ -39,7 +39,7 @@ export class MilestonesService {
   async milestonesByProject(
     projectId: number,
     user: AuthenticatedUser,
-  ): Promise<ProjectMilestoneResponse[]> {
+  ): Promise<SelectedMilestone[]> {
     await this.assertProjectExists(projectId);
     await this.authorization.assertProjectMember(user, projectId);
 
@@ -72,7 +72,7 @@ export class MilestonesService {
     projectId: number;
     data: CreateMilestoneDto;
     user: AuthenticatedUser;
-  }): Promise<ProjectMilestoneResponse> {
+  }): Promise<SelectedMilestone> {
     await this.assertProjectExists(params.projectId);
     await this.authorization.assertCanManageMilestone(
       params.user,
@@ -111,7 +111,7 @@ export class MilestonesService {
     milestoneId: number;
     data: UpdateMilestoneDto;
     user: AuthenticatedUser;
-  }): Promise<ProjectMilestoneResponse> {
+  }): Promise<SelectedMilestone> {
     await this.assertProjectExists(params.projectId);
     await this.authorization.assertCanManageMilestone(
       params.user,
@@ -159,7 +159,7 @@ export class MilestonesService {
     projectId: number;
     milestoneId: number;
     user: AuthenticatedUser;
-  }): Promise<ProjectMilestoneResponse> {
+  }): Promise<SelectedMilestone> {
     await this.assertProjectExists(params.projectId);
     await this.authorization.assertCanManageMilestone(
       params.user,
