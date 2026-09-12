@@ -66,12 +66,12 @@ describe('ProjectsService', () => {
       },
       $transaction: jest.fn(
         (
-          callback: (transactionClient: {
+          callback: (transaction: {
             project: { update: typeof transactionProjectUpdate };
             projectStatusHistory: {
               create: typeof transactionHistoryCreate;
             };
-          }) => Promise<unknown>,
+          }) => unknown,
         ) =>
           callback({
             project: { update: transactionProjectUpdate },
