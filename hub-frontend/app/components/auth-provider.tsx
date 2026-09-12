@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  startTransition,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   AuthSession,
   clearAuthSession,
@@ -24,12 +31,15 @@ export default function AuthProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [session, setSession] = useState<AuthSession | null>(() =>
-    loadAuthSession(),
-  );
-  const [ready] = useState(true);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    startTransition(() => {
+      setSession(loadAuthSession());
+      setReady(true);
+    });
+
     function handleStorage(event: StorageEvent) {
       if (event.key === "capstonehub.auth.session") {
         setSession(loadAuthSession());
