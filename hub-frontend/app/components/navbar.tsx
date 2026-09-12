@@ -56,7 +56,7 @@ export default function Navbar() {
             <NavigationMenuItem className="hidden md:flex">
               <NavigationMenuTrigger>Proponer</NavigationMenuTrigger>
               <NavigationMenuContent>
-                <ul className="grid w-[400px] gap-2 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                <ul className="grid w-400px gap-2 md:w-500px md:grid-cols-2 lg:w-600px">
                   {components.map((component) => (
                     <ListItem
                       key={component.title}
