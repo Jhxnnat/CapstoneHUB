@@ -38,6 +38,7 @@ type ProjectWithRelations = Prisma.ProjectGetPayload<{
         user: true;
       };
     };
+    milestones: true;
   };
 }>;
 
@@ -108,6 +109,15 @@ export type ProjectDetailResponse = ProjectListResponse & {
       email: string;
     };
   }[];
+  milestones: {
+    id: number;
+    projectId: number;
+    title: string;
+    description: string | null;
+    dueDate: Date;
+    completed: boolean;
+    createdAt: Date;
+  }[];
 };
 
 export type ProjectActorAssignmentResponse = {
@@ -166,18 +176,12 @@ export function isValidProjectStatusTransition(
       ProjectStatus.approved,
       ProjectStatus.rejected,
     ],
-    [ProjectStatus.approved]: [
-      ProjectStatus.assigned,
-      ProjectStatus.rejected,
-    ],
+    [ProjectStatus.approved]: [ProjectStatus.assigned, ProjectStatus.rejected],
     [ProjectStatus.assigned]: [
       ProjectStatus.in_progress,
       ProjectStatus.rejected,
     ],
-    [ProjectStatus.in_progress]: [
-      ProjectStatus.closed,
-      ProjectStatus.rejected,
-    ],
+    [ProjectStatus.in_progress]: [ProjectStatus.closed, ProjectStatus.rejected],
     [ProjectStatus.closed]: [],
     [ProjectStatus.rejected]: [],
   };
@@ -244,6 +248,15 @@ function mapProjectDetailResponse(
         email: assignment.user.email,
       },
     })),
+    milestones: (
+      project as unknown as Pick<ProjectDetailResponse, 'milestones'>
+    ).milestones
+      .slice()
+      .sort(
+        (left, right) =>
+          left.dueDate.getTime() - right.dueDate.getTime() ||
+          left.id - right.id,
+      ),
   };
 }
 
@@ -282,6 +295,7 @@ export class ProjectsService {
             user: true,
           },
         },
+        milestones: true,
       },
     });
 
@@ -325,6 +339,7 @@ export class ProjectsService {
             user: true,
           },
         },
+        milestones: true,
       },
     });
 
@@ -335,7 +350,7 @@ export class ProjectsService {
     user: AuthenticatedUser,
     data: Prisma.ProjectCreateInput,
   ): Promise<ProjectDetailResponse> {
-    await this.authorization.assertCanCreateProject(user);
+    this.authorization.assertCanCreateProject(user);
     try {
       const project = await this.prisma.project.create({
         data,
@@ -362,6 +377,7 @@ export class ProjectsService {
               user: true,
             },
           },
+          milestones: true,
         },
       });
 
@@ -371,10 +387,16 @@ export class ProjectsService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        const target = Array.isArray(error.meta?.target) 
+        const target = Array.isArray(error.meta?.target)
           ? error.meta?.target.join(', ')
-          : String(error.meta?.target ?? 'unique field');
-        throw new ConflictException(`Duplicate value for a unique field: ${target}`);
+          : typeof error.meta?.target === 'string'
+            ? error.meta.target
+            : error.meta?.target == null
+              ? 'unique field'
+              : JSON.stringify(error.meta.target);
+        throw new ConflictException(
+          `Duplicate value for a unique field: ${target}`,
+        );
       }
 
       throw error;
@@ -395,26 +417,27 @@ export class ProjectsService {
       include: {
         naturalProposer: true,
         legalProposer: true,
-          observations: {
-            select: {
-              id: true,
-              projectId: true,
-              content: true,
-              createdAt: true,
-              authorUser: {
-                select: {
-                  id: true,
-                  fullName: true,
-                  email: true,
-                },
+        observations: {
+          select: {
+            id: true,
+            projectId: true,
+            content: true,
+            createdAt: true,
+            authorUser: {
+              select: {
+                id: true,
+                email: true,
+                fullName: true,
               },
             },
           },
+        },
         actorAssignments: {
           include: {
             user: true,
           },
         },
+        milestones: true,
       },
     });
 
@@ -568,5 +591,4 @@ export class ProjectsService {
 
     return where.id;
   }
-
 }
