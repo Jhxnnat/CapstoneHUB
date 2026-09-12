@@ -36,20 +36,20 @@ enum ActorRole {
 }
 
 model User {
-  id              Int      @id @default(autoincrement())
-  fullName        String   @map("full_name") @db.VarChar(255)
-  email           String   @unique(map: "uk_user_email") @db.VarChar(255)
-  passwordHash    String   @map("password_hash") @db.VarChar(255)
-  isActive        Boolean  @default(true) @map("is_active")
+  id              Int       @id @default(autoincrement())
+  fullName        String    @map("full_name") @db.VarChar(255)
+  email           String    @unique(map: "uk_user_email") @db.VarChar(255)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  isActive        Boolean   @default(true) @map("is_active")
   emailVerifiedAt DateTime? @map("email_verified_at")
   lastLoginAt     DateTime? @map("last_login_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  roleAssignments         UserRoleAssignment[]
-  projectAssignments      ProjectActorAssignment[]
+  roleAssignments        UserRoleAssignment[]
+  projectAssignments     ProjectActorAssignment[]
   projectStatusHistories ProjectStatusHistory[]
-  authoredObservations    ProjectObservation[]
+  authoredObservations   ProjectObservation[]
 
   @@index([fullName], map: "idx_user_full_name")
   @@map("user")
@@ -87,6 +87,7 @@ model Project {
   actorAssignments ProjectActorAssignment[]
   observations     ProjectObservation[]
   statusHistory    ProjectStatusHistory[]
+  milestones       ProjectMilestones[]
 
   @@index([status], map: "idx_project_status")
   @@index([startDate], map: "idx_project_start_date")
@@ -178,11 +179,28 @@ model ProjectStatusHistory {
   authorUserId   Int?           @map("author_user_id")
   changedAt      DateTime       @default(now()) @map("changed_at")
 
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  authorUser  User?   @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  authorUser User?   @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
 
   @@index([projectId], map: "idx_project_status_history_project_id")
   @@index([nextStatus], map: "idx_project_status_history_next_status")
   @@index([changedAt], map: "idx_project_status_history_changed_at")
   @@map("project_status_history")
+}
+
+model ProjectMilestones {
+  id          Int      @id @default(autoincrement())
+  projectId   Int      @map("project_id")
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  dueDate     DateTime @map("due_date")
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId], map: "idx_project_milestones_project_id")
+  @@index([dueDate], map: "idx_project_milestones_due_date")
+  @@index([completed], map: "idx_project_milestones_completed")
+  @@map("project_milestones")
 }
