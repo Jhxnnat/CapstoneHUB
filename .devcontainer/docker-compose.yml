@@ -24,10 +24,12 @@ services:
 
   db:
     image: postgres:15-alpine
+    # env_file:
+      # - ../.env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: supersecure
-      POSTGRES_DB: db
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
