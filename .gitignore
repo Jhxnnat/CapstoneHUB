@@ -6,3 +6,8 @@
 
 ./data/*
 data
+
+.devcontainer/.env
+.devcontainer/.env.*
+!.devcontainer/.env.example
+
