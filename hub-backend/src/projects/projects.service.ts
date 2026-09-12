@@ -260,6 +260,26 @@ function mapProjectDetailResponse(
   };
 }
 
+function rethrowProjectCreateError(error: unknown): never {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  ) {
+    const target = Array.isArray(error.meta?.target)
+      ? error.meta.target.join(', ')
+      : typeof error.meta?.target === 'string'
+        ? error.meta.target
+        : error.meta?.target == null
+          ? 'unique field'
+          : JSON.stringify(error.meta.target);
+    throw new ConflictException(
+      `Duplicate value for a unique field: ${target}`,
+    );
+  }
+
+  throw error;
+}
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -352,55 +372,44 @@ export class ProjectsService {
   ): Promise<ProjectDetailResponse> {
     this.authorization.assertCanCreateProject(user);
     try {
-      const project = await this.prisma.project.create({
-        data,
-        include: {
-          naturalProposer: true,
-          legalProposer: true,
-          observations: {
-            select: {
-              id: true,
-              projectId: true,
-              content: true,
-              createdAt: true,
-              authorUser: {
-                select: {
-                  id: true,
-                  fullName: true,
-                  email: true,
-                },
+      const project = await this.createProjectRecord(data);
+      return mapProjectDetailResponse(project);
+    } catch (error) {
+      rethrowProjectCreateError(error);
+    }
+  }
+
+  private createProjectRecord(
+    data: Prisma.ProjectCreateInput,
+  ): Promise<ProjectWithRelations> {
+    return this.prisma.project.create({
+      data,
+      include: {
+        naturalProposer: true,
+        legalProposer: true,
+        observations: {
+          select: {
+            id: true,
+            projectId: true,
+            content: true,
+            createdAt: true,
+            authorUser: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
               },
             },
           },
-          actorAssignments: {
-            include: {
-              user: true,
-            },
-          },
-          milestones: true,
         },
-      });
-
-      return mapProjectDetailResponse(project);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        const target = Array.isArray(error.meta?.target)
-          ? error.meta?.target.join(', ')
-          : typeof error.meta?.target === 'string'
-            ? error.meta.target
-            : error.meta?.target == null
-              ? 'unique field'
-              : JSON.stringify(error.meta.target);
-        throw new ConflictException(
-          `Duplicate value for a unique field: ${target}`,
-        );
-      }
-
-      throw error;
-    }
+        actorAssignments: {
+          include: {
+            user: true,
+          },
+        },
+        milestones: true,
+      },
+    });
   }
 
   async updateProject(params: {
