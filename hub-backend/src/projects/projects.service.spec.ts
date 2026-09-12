@@ -39,9 +39,9 @@ describe('ProjectsService', () => {
     [ProjectStatus.in_progress, ProjectStatus.closed],
     [ProjectStatus.in_progress, ProjectStatus.rejected],
   ])('accepts valid transition %s -> %s', (previousStatus, nextStatus) => {
-    expect(
-      isValidProjectStatusTransition(previousStatus, nextStatus),
-    ).toBe(true);
+    expect(isValidProjectStatusTransition(previousStatus, nextStatus)).toBe(
+      true,
+    );
   });
 
   it.each([
@@ -50,9 +50,9 @@ describe('ProjectsService', () => {
     [ProjectStatus.closed, ProjectStatus.rejected],
     [ProjectStatus.rejected, ProjectStatus.proposed],
   ])('rejects invalid transition %s -> %s', (previousStatus, nextStatus) => {
-    expect(
-      isValidProjectStatusTransition(previousStatus, nextStatus),
-    ).toBe(false);
+    expect(isValidProjectStatusTransition(previousStatus, nextStatus)).toBe(
+      false,
+    );
   });
 
   it('updates status and history in the same transaction', async () => {
@@ -64,11 +64,19 @@ describe('ProjectsService', () => {
           .fn()
           .mockResolvedValueOnce({ id: 10, status: ProjectStatus.proposed }),
       },
-      $transaction: jest.fn(async (callback) =>
-        callback({
-          project: { update: transactionProjectUpdate },
-          projectStatusHistory: { create: transactionHistoryCreate },
-        }),
+      $transaction: jest.fn(
+        (
+          callback: (transactionClient: {
+            project: { update: typeof transactionProjectUpdate };
+            projectStatusHistory: {
+              create: typeof transactionHistoryCreate;
+            };
+          }) => Promise<unknown>,
+        ) =>
+          callback({
+            project: { update: transactionProjectUpdate },
+            projectStatusHistory: { create: transactionHistoryCreate },
+          }),
       ),
     };
     const authorization = {
@@ -80,7 +88,7 @@ describe('ProjectsService', () => {
       email: 'evaluator@example.com',
       roles: [UserRole.evaluator],
     };
-    const service = new ProjectsService(prisma as never, authorization as never);
+    const service = new ProjectsService(prisma as never, authorization);
     jest.spyOn(service, 'project').mockResolvedValue({
       id: 10,
       name: 'Project',
@@ -96,6 +104,7 @@ describe('ProjectsService', () => {
       updatedAt: new Date(),
       observations: [],
       actorAssignments: [],
+      milestones: [],
     });
 
     await service.transitionProjectStatus({
@@ -124,13 +133,18 @@ describe('ProjectsService', () => {
   it('rejects invalid transitions before authorization checks', async () => {
     const prisma = {
       project: {
-        findUnique: jest.fn().mockResolvedValue({ id: 10, status: ProjectStatus.proposed }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 10, status: ProjectStatus.proposed }),
       },
     };
     const authorization = {
       assertCanTransitionProject: jest.fn().mockResolvedValue(undefined),
     };
-    const service = new ProjectsService(prisma as never, authorization as never);
+    const service = new ProjectsService(
+      prisma as never,
+      authorization as never,
+    );
 
     await expect(
       service.transitionProjectStatus({

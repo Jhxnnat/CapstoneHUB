@@ -2,6 +2,14 @@ import { BadRequestException } from '@nestjs/common';
 import { UserRole } from '../generated/prisma/client';
 import { AuthService } from './auth.service';
 
+type CreateUserArgs = {
+  data: {
+    roleAssignments: {
+      create: Array<{ role: UserRole }>;
+    };
+  };
+};
+
 describe('AuthService role management', () => {
   const adminUser = {
     id: 1,
@@ -16,12 +24,22 @@ describe('AuthService role management', () => {
   });
 
   it('creates users with the requested global roles without returning a password', async () => {
-    const createUser = jest.fn().mockResolvedValue({
-      id: 2,
-      fullName: 'Coordinator',
-      email: 'coordinator@example.com',
-      roleAssignments: [{ role: UserRole.coordinator }],
-    });
+    const createUser = jest
+      .fn<
+        Promise<{
+          id: number;
+          fullName: string;
+          email: string;
+          roleAssignments: Array<{ role: UserRole }>;
+        }>,
+        [CreateUserArgs]
+      >()
+      .mockResolvedValue({
+        id: 2,
+        fullName: 'Coordinator',
+        email: 'coordinator@example.com',
+        roleAssignments: [{ role: UserRole.coordinator }],
+      });
     const prisma = {
       user: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -44,15 +62,15 @@ describe('AuthService role management', () => {
       roles: [UserRole.coordinator],
     });
     expect(result).not.toHaveProperty('passwordHash');
-    expect(createUser).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          roleAssignments: {
-            create: [{ role: UserRole.coordinator }],
-          },
-        }),
-      }),
-    );
+    expect(createUser).toHaveBeenCalledTimes(1);
+    const createCall = createUser.mock.calls[0];
+    expect(createCall).toBeDefined();
+    if (!createCall) {
+      throw new Error('Expected the user create mock to be called');
+    }
+    expect(createCall[0].data.roleAssignments.create).toEqual([
+      { role: UserRole.coordinator },
+    ]);
   });
 
   it('replaces roles transactionally', async () => {

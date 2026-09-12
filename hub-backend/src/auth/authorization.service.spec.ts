@@ -58,4 +58,37 @@ describe('AuthorizationService', () => {
       service.assertAssignableUser(8, ActorRole.coordinator),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('requires a matching coordinator or evaluator assignment for milestones', async () => {
+    const findAssignment = jest.fn().mockResolvedValue({ id: 3 });
+    const prisma = {
+      projectActorAssignment: { findFirst: findAssignment },
+    };
+    const service = new AuthorizationService(prisma as never);
+
+    await expect(
+      service.assertCanManageMilestone(user([UserRole.evaluator]), 10),
+    ).resolves.toBeUndefined();
+    expect(findAssignment).toHaveBeenCalledWith({
+      where: {
+        projectId: 10,
+        userId: 7,
+        role: { in: [ActorRole.evaluator] },
+      },
+      select: { id: true },
+    });
+  });
+
+  it('allows admins to manage milestones without a project assignment', async () => {
+    const findAssignment = jest.fn();
+    const prisma = {
+      projectActorAssignment: { findFirst: findAssignment },
+    };
+    const service = new AuthorizationService(prisma as never);
+
+    await expect(
+      service.assertCanManageMilestone(user([UserRole.admin]), 10),
+    ).resolves.toBeUndefined();
+    expect(findAssignment).not.toHaveBeenCalled();
+  });
 });
