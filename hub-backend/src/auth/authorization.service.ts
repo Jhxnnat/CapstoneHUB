@@ -35,7 +35,7 @@ export class AuthorizationService {
     }
   }
 
-  async assertCanCreateProject(user: AuthenticatedUser): Promise<void> {
+  assertCanCreateProject(user: AuthenticatedUser): void {
     if (user.roles.length === 0) {
       throw new ForbiddenException('A role is required to create projects');
     }
@@ -63,6 +63,40 @@ export class AuthorizationService {
 
     this.assertRole(user, UserRole.coordinator);
     await this.assertProjectAssignment(user, projectId, ActorRole.coordinator);
+  }
+
+  async assertCanManageMilestone(
+    user: AuthenticatedUser,
+    projectId: number,
+  ): Promise<void> {
+    if (user.roles.includes(UserRole.admin)) {
+      return;
+    }
+
+    const roles: ActorRole[] = [];
+    if (user.roles.includes(UserRole.coordinator)) {
+      roles.push(ActorRole.coordinator);
+    }
+    if (user.roles.includes(UserRole.evaluator)) {
+      roles.push(ActorRole.evaluator);
+    }
+
+    if (roles.length === 0) {
+      throw new ForbiddenException(
+        'A coordinator or evaluator role is required',
+      );
+    }
+
+    const assignment = await this.prisma.projectActorAssignment.findFirst({
+      where: { projectId, userId: user.id, role: { in: roles } },
+      select: { id: true },
+    });
+
+    if (!assignment) {
+      throw new ForbiddenException(
+        'A project coordinator or evaluator assignment is required for this action',
+      );
+    }
   }
 
   async assertCanTransitionProject(
