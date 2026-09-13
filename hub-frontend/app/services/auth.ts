@@ -75,6 +75,8 @@ export async function loginUser(payload: {
     body: JSON.stringify(payload),
   });
 
+  
+
   if (!response.ok) {
     const errorBody = (await response.json().catch(() => null)) as
       | { message?: string }
@@ -86,4 +88,86 @@ export async function loginUser(payload: {
   }
 
   return (await response.json()) as AuthSession;
+}
+
+export async function getUsers(): Promise<AuthUser[]> {
+  const token = getAuthToken();
+
+  const response = await fetch("/api/auth/users", {
+    method: "GET",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
+
+    throw new Error(
+      errorBody?.message ?? `Backend responded with status ${response.status}`,
+    );
+  }
+
+  return (await response.json()) as AuthUser[];
+}
+
+export async function createUser(payload: {
+  fullName: string;
+  email: string;
+  password: string;
+  roles: string[];
+}): Promise<AuthUser> {
+  const token = getAuthToken();
+
+  const response = await fetch("/api/auth/users", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
+
+    throw new Error(
+      errorBody?.message ?? `Backend responded with status ${response.status}`,
+    );
+  }
+
+  return (await response.json()) as AuthUser;
+}
+
+export async function updateUserRoles(
+  userId: number,
+  roles: string[],
+): Promise<AuthUser> {
+  const token = getAuthToken();
+
+  const response = await fetch(`/api/auth/users/${userId}/roles`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ roles }),
+  });
+
+  if (!response.ok) {
+    const errorBody = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
+
+    throw new Error(
+      errorBody?.message ?? `Backend responded with status ${response.status}`,
+    );
+  }
+
+  return (await response.json()) as AuthUser;
 }
