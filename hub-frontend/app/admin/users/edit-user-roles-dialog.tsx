@@ -1,5 +1,6 @@
 "use client";
 
+import FormActions from "@/app/components/form-actions";
 import { useEffect, useState } from "react";
 import { updateUserRoles, AuthUser } from "@/app/services/auth";
 import {
@@ -138,20 +139,12 @@ export default function EditUserRolesDialog({
             </p>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-
-            <Button type="submit" disabled={loading}>
-              {loading ? "Guardando..." : "Guardar cambios"}
-            </Button>
-          </div>
+            <FormActions
+            loading={loading}
+            loadingText="Guardando..."
+            submitText="Guardar cambios"
+            onCancel={() => setOpen(false)}
+            />
         </form>
       </DialogContent>
     </Dialog>

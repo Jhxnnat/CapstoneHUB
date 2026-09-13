@@ -1,5 +1,6 @@
 "use client";
 
+import FormActions from "@/app/components/form-actions";
 import { useState } from "react";
 import { createUser, AuthUser } from "../../services/auth";
 import {
@@ -169,20 +170,12 @@ export default function CreateUserDialog({
             </p>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancelar
-            </Button>
-
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creando..." : "Crear usuario"}
-            </Button>
-          </div>
+            <FormActions
+            loading={loading}
+            loadingText="Creando..."
+            submitText="Crear usuario"
+            onCancel={() => setOpen(false)}
+            />
         </form>
       </DialogContent>
     </Dialog>
