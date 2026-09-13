@@ -12,13 +12,6 @@ export default function SubmitNaturalProjectPage() {
             </h1>
             <p className="text-sm text-slate-600">Persona natural</p>
           </div>
-
-          <Link
-            href="/submit"
-            className="inline-flex shrink-0 items-center justify-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Volver
-          </Link>
         </div>
 
         <SubmitProjectForm />

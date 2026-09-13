@@ -1,118 +1,120 @@
 "use client";
 
-import Link from "next/link";
-import { useMemo, useState } from "react";
-import { formatStatus } from "../services/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  useTable,
+  type ColumnFiltersState,
+} from "@tanstack/react-table";
+import { useState } from "react";
+import { columns } from "./columns";
+import {
+  features,
+  type ProjectTableFeatures,
+} from "./projects-table-features";
 import { ProjectItem } from "../services/schemas";
 
 type ProjectsTableProps = {
   projects: ProjectItem[];
 };
 
-function getProposerName(project: ProjectItem): string {
-  if (project.proposer?.type === "natural_person") {
-    return project.proposer.fullName;
-  }
-
-  if (project.proposer?.type === "legal_person") {
-    return project.proposer.legalName;
-  }
-
-  return "Sin información";
-}
-
-function getLocation(project: ProjectItem): string {
-  return project.location || project.context || "Sin información";
-}
-
 export default function ProjectsTable({ projects }: ProjectsTableProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const filteredProjects = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    if (!normalizedSearch) {
-      return projects;
-    }
-
-    return projects.filter((project) =>
-      project.name.toLowerCase().includes(normalizedSearch),
-    );
-  }, [projects, searchTerm]);
-
-  const isSearching = searchTerm.trim().length > 0;
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const table = useTable<ProjectTableFeatures, ProjectItem>({
+    features,
+    data: projects,
+    columns,
+    onColumnFiltersChange: setColumnFilters,
+    state: {
+      columnFilters,
+    },
+  });
+  const nameColumn = table.getColumn("name");
+  const filterValue = (nameColumn?.getFilterValue() as string) ?? "";
 
   return (
-    <div className="space-y-4">
-      <div className="border border-slate-200 bg-white shadow-sm">
-        <label
-          htmlFor="project-search"
-          className="lock text-sm font-medium text-slate-700"
-        >
+    <div>
+      <div className="flex items-center py-4">
+        <label htmlFor="project-search" className="sr-only">
+          Filtrar por nombre del proyecto
         </label>
-        <input
+        <Input
           id="project-search"
           type="search"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Filtrar por nombre del proyecto"
-          className="w-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
+          placeholder="Filtrar por nombre..."
+          value={filterValue}
+          onChange={(event) => nameColumn?.setFilterValue(event.target.value)}
+          className="max-w-sm"
         />
       </div>
 
-      {isSearching && filteredProjects.length === 0 ? (
-        <div className="border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
-          No se encontraron proyectos que coincidan con la búsqueda.
-        </div>
-      ) : null}
-
-      {filteredProjects.length > 0 ? (
-        <div className="overflow-x-auto border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Nombre
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Lugar
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Proponente
-                </th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Estado
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {filteredProjects.map((project) => {
-                const proposerName = getProposerName(project);
-                const location = getLocation(project);
-
-                return (
-                  <tr key={project.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-4 text-sm font-medium text-slate-900">
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="text-slate-900 underline-offset-2 hover:underline"
-                      >
-                        {project.name}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-4 text-sm text-slate-700">{location}</td>
-                    <td className="px-5 py-4 text-sm text-slate-700">{proposerName}</td>
-                    <td className="px-5 py-4 text-sm text-slate-700">
-                      <span className="inline-flex w-fit bg-blue-400 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue-800">
-                        {formatStatus(project.status)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {projects.length > 0 ? (
+        <div>
+          <div className="overflow-hidden rounded-md border">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder ? null : (
+                          <table.FlexRender header={header} />
+                        )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          <table.FlexRender cell={cell} />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length}>
+                      No se encontraron proyectos.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="flex items-center justify-end space-x-2 py-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Siguiente
+            </Button>
+          </div>
         </div>
       ) : null}
     </div>

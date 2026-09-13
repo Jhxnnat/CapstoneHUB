@@ -69,10 +69,6 @@ export default function Navbar() {
                 </ul>
               </NavigationMenuContent>
             </NavigationMenuItem>
-
-            <NavigationMenuItem>
-              <NavigationMenuLink render={<Link href="#">Acerca de</Link>} />
-            </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
 
