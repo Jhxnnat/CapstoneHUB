@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 // import { useAuth } from "./auth-provider";
+import { useAuth } from "./auth-provider";
 import { AuthNav } from "./auth-nav";
 
 import {
@@ -31,7 +32,10 @@ const components: { title: string; href: string; description: string }[] = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { session } = useAuth();
 
+  const isAdmin = session?.user.roles.includes("admin") ?? false;
+  
   return (
     <nav className="border-b border-slate-200 bg-white shadow-sm">
       <div className="mx-auto flex w-full max-w-5xl items-center gap-4 px-6 py-3 sm:px-10 lg:px-12">
@@ -52,6 +56,14 @@ export default function Navbar() {
                 render={<Link href="/projects">Proyectos</Link>}
               />
             </NavigationMenuItem>
+
+            {isAdmin && (
+            <NavigationMenuItem>
+              <NavigationMenuLink
+                render={<Link href="/admin/users">Administración</Link>}
+              />
+            </NavigationMenuItem>
+            )}
 
             <NavigationMenuItem className="hidden md:flex">
               <NavigationMenuTrigger>Proponer</NavigationMenuTrigger>
