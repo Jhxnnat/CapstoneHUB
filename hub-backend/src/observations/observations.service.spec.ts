@@ -43,7 +43,7 @@ describe('ObservationsService', () => {
       },
     };
     const authorization = {
-      assertProjectMember: jest.fn().mockResolvedValue(undefined),
+      assertAssignedProjectMember: jest.fn().mockResolvedValue(undefined),
     };
     const service = new ObservationsService(
       prisma as never,
@@ -57,6 +57,10 @@ describe('ObservationsService', () => {
     });
 
     expect(createObservation).toHaveBeenCalledTimes(1);
+    expect(authorization.assertAssignedProjectMember).toHaveBeenCalledWith(
+      user,
+      10,
+    );
     const createCall = createObservation.mock.calls[0];
     expect(createCall).toBeDefined();
     if (!createCall) {
@@ -101,5 +105,28 @@ describe('ObservationsService', () => {
     await expect(
       service.observationsByProject(10, user),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects observation creation for users without a project assignment', async () => {
+    const prisma = {
+      project: { findUnique: jest.fn().mockResolvedValue({ id: 10 }) },
+    };
+    const authorization = {
+      assertAssignedProjectMember: jest
+        .fn()
+        .mockRejectedValue(new ForbiddenException()),
+    };
+    const service = new ObservationsService(
+      prisma as never,
+      authorization as never,
+    );
+
+    await expect(
+      service.createObservation({ projectId: 10, content: 'Note', user }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(authorization.assertAssignedProjectMember).toHaveBeenCalledWith(
+      user,
+      10,
+    );
   });
 });

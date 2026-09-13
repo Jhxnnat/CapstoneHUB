@@ -25,6 +25,13 @@ export class AuthorizationService {
       return;
     }
 
+    await this.assertAssignedProjectMember(user, projectId);
+  }
+
+  async assertAssignedProjectMember(
+    user: AuthenticatedUser,
+    projectId: number,
+  ): Promise<void> {
     const assignment = await this.prisma.projectActorAssignment.findFirst({
       where: { projectId, userId: user.id },
       select: { id: true },

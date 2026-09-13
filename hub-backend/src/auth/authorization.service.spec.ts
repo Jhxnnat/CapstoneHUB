@@ -91,4 +91,36 @@ describe('AuthorizationService', () => {
     ).resolves.toBeUndefined();
     expect(findAssignment).not.toHaveBeenCalled();
   });
+
+  it('allows any assigned project member to create observations', async () => {
+    const findAssignment = jest.fn().mockResolvedValue({ id: 4 });
+    const prisma = {
+      projectActorAssignment: { findFirst: findAssignment },
+    };
+    const service = new AuthorizationService(prisma as never);
+
+    await expect(
+      service.assertAssignedProjectMember(user([UserRole.student]), 10),
+    ).resolves.toBeUndefined();
+    expect(findAssignment).toHaveBeenCalledWith({
+      where: { projectId: 10, userId: 7 },
+      select: { id: true },
+    });
+  });
+
+  it('rejects creating observations without a project assignment, including admins', async () => {
+    const findAssignment = jest.fn().mockResolvedValue(null);
+    const prisma = {
+      projectActorAssignment: { findFirst: findAssignment },
+    };
+    const service = new AuthorizationService(prisma as never);
+
+    await expect(
+      service.assertAssignedProjectMember(user([UserRole.admin]), 10),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(findAssignment).toHaveBeenCalledWith({
+      where: { projectId: 10, userId: 7 },
+      select: { id: true },
+    });
+  });
 });

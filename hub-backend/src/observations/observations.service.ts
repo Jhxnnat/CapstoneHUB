@@ -79,7 +79,10 @@ export class ObservationsService {
     user: AuthenticatedUser;
   }): Promise<ProjectObservationResponse> {
     await this.assertProjectExists(params.projectId);
-    await this.authorization.assertProjectMember(params.user, params.projectId);
+    await this.authorization.assertAssignedProjectMember(
+      params.user,
+      params.projectId,
+    );
 
     const content = params.content?.trim();
 
