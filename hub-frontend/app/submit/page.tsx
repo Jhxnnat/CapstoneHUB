@@ -1,4 +1,3 @@
-import Link from "next/link";
 import SubmitCard from "../components/submit-card";
 
 export default function SubmitPage() {

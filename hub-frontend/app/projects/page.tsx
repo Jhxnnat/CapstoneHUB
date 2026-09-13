@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getProjects } from "../services/projects";
 import ProjectsTable from "@/app/projects/projects-table";
 

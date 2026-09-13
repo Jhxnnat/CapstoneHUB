@@ -1,4 +1,3 @@
-import Link from "next/link";
 import SubmitProjectForm from "../../components/submit-project-form";
 
 export default function SubmitNaturalProjectPage() {

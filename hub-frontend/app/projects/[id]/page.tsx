@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProjectById } from "../../services/projects";
 import ProjectStatusEditForm from "../../components/project-status-edit-form";
