@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "./auth-provider";
+import { Button } from "@/components/ui/button";
 
 export function AuthNav() {
 
@@ -31,13 +32,13 @@ export function AuthNav() {
                     {userRoles || "Sin rol asignado"}
                 </span>
                 </span>
-                <button
-                type="button"
+                <Button
+                variant="outline"
                 onClick={logout}
                 className="inline-flex items-center justify-center border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
                 Cerrar sesión
-                </button>
+                </Button>
             </>
             ) : (
             <Link

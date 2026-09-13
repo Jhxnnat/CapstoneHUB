@@ -1,4 +1,3 @@
-import Link from "next/link";
 import SubmitCard from "../components/submit-card";
 
 export default function SubmitPage() {
@@ -11,13 +10,6 @@ export default function SubmitPage() {
               Proponer un proyecto
             </h1>
           </div>
-
-          <Link
-            href="/"
-            className="inline-flex shrink-0 items-center justify-center border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Volver
-          </Link>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
