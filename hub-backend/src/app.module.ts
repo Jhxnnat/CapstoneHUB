@@ -3,10 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ProjectsModule } from './projects/projects.module';
 import { ObservationsModule } from './observations/observations.module';
+import { MilestonesModule } from './milestones/milestones.module';
 import { AuthModule } from './auth/auth.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { ProjectsController } from './projects/projects.controller';
 import { ObservationsController } from './observations/observations.controller';
+import { MilestonesController } from './milestones/milestones.controller';
 import { AuthController } from './auth/auth.controller';
 import { ConfigModule } from '@nestjs/config';
 
@@ -14,6 +16,7 @@ import { ConfigModule } from '@nestjs/config';
   imports: [
     ProjectsModule,
     ObservationsModule,
+    MilestonesModule,
     AuthModule,
     ConfigModule.forRoot(),
   ],
@@ -24,6 +27,11 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(LoggerMiddleware)
-      .forRoutes(ProjectsController, ObservationsController, AuthController);
+      .forRoutes(
+        ProjectsController,
+        ObservationsController,
+        MilestonesController,
+        AuthController,
+      );
   }
 }

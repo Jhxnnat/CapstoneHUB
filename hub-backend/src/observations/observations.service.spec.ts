@@ -2,7 +2,12 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ObservationsService } from './observations.service';
 
 describe('ObservationsService', () => {
-  const user = { id: 4, fullName: 'Student', email: 'student@example.com', roles: [] };
+  const user = {
+    id: 4,
+    fullName: 'Student',
+    email: 'student@example.com',
+    roles: [],
+  };
 
   it('stores and returns the authenticated author safely', async () => {
     const observation = {
@@ -16,7 +21,21 @@ describe('ObservationsService', () => {
         email: 'student@example.com',
       },
     };
-    const createObservation = jest.fn().mockResolvedValue(observation);
+    const createObservation = jest
+      .fn<
+        Promise<typeof observation>,
+        [
+          {
+            data: {
+              content: string;
+              authorUser: { connect: { id: number } };
+              project: { connect: { id: number } };
+            };
+            select: unknown;
+          },
+        ]
+      >()
+      .mockResolvedValue(observation);
     const prisma = {
       project: { findUnique: jest.fn().mockResolvedValue({ id: 10 }) },
       projectObservation: {
@@ -37,13 +56,13 @@ describe('ObservationsService', () => {
       user,
     });
 
-    expect(createObservation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          authorUser: { connect: { id: 4 } },
-        }),
-      }),
-    );
+    expect(createObservation).toHaveBeenCalledTimes(1);
+    const createCall = createObservation.mock.calls[0];
+    expect(createCall).toBeDefined();
+    if (!createCall) {
+      throw new Error('Expected the observation create mock to be called');
+    }
+    expect(createCall[0].data.authorUser).toEqual({ connect: { id: 4 } });
     expect(result.author).toEqual(observation.authorUser);
     expect(result).not.toHaveProperty('authorUser.passwordHash');
   });
@@ -59,9 +78,9 @@ describe('ObservationsService', () => {
       authorization as never,
     );
 
-    await expect(service.observationsByProject(999, user)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.observationsByProject(999, user),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(assertProjectMember).not.toHaveBeenCalled();
   });
 
@@ -79,8 +98,8 @@ describe('ObservationsService', () => {
       authorization as never,
     );
 
-    await expect(service.observationsByProject(10, user)).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
+    await expect(
+      service.observationsByProject(10, user),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

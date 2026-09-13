@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -24,7 +17,10 @@ export class ObservationsController {
     @Param('projectId') projectId: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ProjectObservationResponse[]> {
-    return this.observationsService.observationsByProject(Number(projectId), user);
+    return this.observationsService.observationsByProject(
+      Number(projectId),
+      user,
+    );
   }
 
   @Post()

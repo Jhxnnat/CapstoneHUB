@@ -177,7 +177,10 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  async replaceUserRoles(userId: number, roles: UserRole[]): Promise<UserSummary> {
+  async replaceUserRoles(
+    userId: number,
+    roles: UserRole[],
+  ): Promise<UserSummary> {
     const uniqueRoles = [...new Set(roles)];
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
@@ -194,7 +197,9 @@ export class AuthService implements OnModuleInit {
       });
 
       if (userIsAdmin > 0 && adminCount <= 1) {
-        throw new BadRequestException('The system must retain at least one admin');
+        throw new BadRequestException(
+          'The system must retain at least one admin',
+        );
       }
     }
 
@@ -221,7 +226,10 @@ export class AuthService implements OnModuleInit {
     const actual = Buffer.from(encodedSignature);
     const expected = Buffer.from(expectedSignature);
 
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+    if (
+      actual.length !== expected.length ||
+      !timingSafeEqual(actual, expected)
+    ) {
       throw new UnauthorizedException('Invalid access token');
     }
 
@@ -234,7 +242,11 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Invalid access token');
     }
 
-    if (!payload.sub || !payload.exp || payload.exp <= Math.floor(Date.now() / 1000)) {
+    if (
+      !payload.sub ||
+      !payload.exp ||
+      payload.exp <= Math.floor(Date.now() / 1000)
+    ) {
       throw new UnauthorizedException('Access token expired');
     }
 
@@ -262,7 +274,9 @@ export class AuthService implements OnModuleInit {
   private getTokenSecret(): string {
     const secret = process.env.AUTH_SECRET?.trim();
     if (!secret || secret.length < 32) {
-      throw new Error('AUTH_SECRET must be configured with at least 32 characters');
+      throw new Error(
+        'AUTH_SECRET must be configured with at least 32 characters',
+      );
     }
 
     return secret;
