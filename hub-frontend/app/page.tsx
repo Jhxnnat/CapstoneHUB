@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function Home() {
@@ -24,19 +25,14 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/projects"
-              className="inline-flex items-center justify-center bg-cyan-400 px-6 py-3 text-sm font-semibold text-blue-800 transition hover:bg-cyan-300"
-            >
-              Ver lista de proyectos
-            </Link>
-
-            <Link
-              href="/projects"
-              className="inline-flex items-center justify-center bg-green-300 px-6 py-3 text-sm font-semibold text-blue-800 transition hover:bg-green-200"
-            >
-              Proponer un Proyecto
-            </Link>
+            <Button variant="default">
+              <Link href="/projects"> Ver lista de proyectos </Link>
+            </Button>
+            <Button variant="outline">
+              <Link href="/submit">
+                Proponer un Proyecto
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
