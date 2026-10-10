@@ -42,6 +42,7 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(LoggerMiddleware)
-      .forRoutes({ path: '*splat', method: RequestMethod.ALL });
+      // `{*splat}` cubre todas las rutas, incluida la raíz `/`.
+      .forRoutes({ path: '{*splat}', method: RequestMethod.ALL });
   }
 }

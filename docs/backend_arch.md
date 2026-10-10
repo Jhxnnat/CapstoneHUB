@@ -35,7 +35,9 @@ Ver también: [Esquema de base de datos](./database_arch.md),
 
 ### Ciclo de vida de una petición
 
-1. **LoggerMiddleware** registra la petición entrante.
+1. **LoggerMiddleware** asigna un `request-id` (reutiliza `x-request-id` o
+   genera uno), lo devuelve en la respuesta y, al terminar, registra una línea
+   JSON con método, ruta, status, duración y usuario.
 2. Los **guards** (`AuthGuard`, `AdminGuard`) autentican y autorizan.
 3. Los **pipes** validan y transforman el body/params en DTOs.
 4. El **controller** despacha al método del service correspondiente.
@@ -43,6 +45,14 @@ Ver también: [Esquema de base de datos](./database_arch.md),
    `AuthorizationService`, `PrismaService` y/o `StorageService`, y mapea el
    resultado.
 6. La respuesta se serializa como JSON (o se envía como stream en descargas).
+
+### Logging de peticiones
+
+`LoggerMiddleware` emite una línea JSON por petición cuando termina la
+respuesta, con `timestamp`, `level`, `requestId`, `method`, `path`, `status`,
+`durationMs` y `userId` (`null` si es anónima). El nivel se deriva del status
+(`5xx` → `error`, `4xx` → `warn`, resto → `log`) y solo se emite si alcanza
+`LOG_LEVEL`. Las líneas `warn`/`error` van a stderr y el resto a stdout.
 
 ## Capas
 
@@ -310,6 +320,7 @@ rutas que la necesitan.
 | `S3_REGION`, `S3_FORCE_PATH_STYLE` | Ajustes del cliente S3 (`true` para MinIO). |
 | `S3_PUBLIC_ENDPOINT` | Host de S3/MinIO que alcanza el navegador; usado para firmar las subidas directas. |
 | `S3_UPLOAD_URL_TTL_SECONDS` | Vigencia de la URL prefirmada de subida (3600 s por defecto). |
+| `LOG_LEVEL` | Nivel mínimo del log de peticiones (`error`, `warn`, `log`/`info` o `debug`; `log` por defecto). |
 
 ## Semillas y migraciones
 
