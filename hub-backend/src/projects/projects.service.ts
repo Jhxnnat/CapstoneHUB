@@ -777,16 +777,7 @@ export class ProjectsService {
     projectId: number;
   }): Promise<ProjectDetailResponse> {
     const { user, projectId } = params;
-    const currentProject = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      select: { id: true, status: true, phase: true, proposerUserId: true },
-    });
-    if (!currentProject) {
-      throw new NotFoundException(`Project ${projectId} not found`);
-    }
-
-    const nextPhase = this.assertPhaseApprovable(currentProject);
-    await this.authorization.assertCanApproveProjectPhase(user, currentProject);
+    const nextPhase = await this.loadApprovablePhaseProject(user, projectId);
 
     await this.prisma.projectPhaseApproval.upsert({
       where: {
@@ -811,22 +802,33 @@ export class ProjectsService {
     projectId: number;
   }): Promise<ProjectDetailResponse> {
     const { user, projectId } = params;
-    const currentProject = await this.prisma.project.findUnique({
-      where: { id: projectId },
-      select: { id: true, status: true, phase: true, proposerUserId: true },
-    });
-    if (!currentProject) {
-      throw new NotFoundException(`Project ${projectId} not found`);
-    }
-
-    const nextPhase = this.assertPhaseApprovable(currentProject);
-    await this.authorization.assertCanApproveProjectPhase(user, currentProject);
+    const nextPhase = await this.loadApprovablePhaseProject(user, projectId);
 
     await this.prisma.projectPhaseApproval.deleteMany({
       where: { projectId, phase: nextPhase, approverUserId: user.id },
     });
 
     return this.projectDetailOrThrow(projectId, user);
+  }
+  /**
+   * Carga el proyecto y exige que el usuario pueda aprobar su siguiente fase;
+   * devuelve la fase destino de la aprobación.
+   */
+  private async loadApprovablePhaseProject(
+    user: AuthenticatedUser,
+    projectId: number,
+  ): Promise<ProjectPhase> {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, status: true, phase: true, proposerUserId: true },
+    });
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    const nextPhase = this.assertPhaseApprovable(project);
+    await this.authorization.assertCanApproveProjectPhase(user, project);
+    return nextPhase;
   }
   /**
    * Valida que el proyecto admita aprobaciones de fase y devuelve la fase

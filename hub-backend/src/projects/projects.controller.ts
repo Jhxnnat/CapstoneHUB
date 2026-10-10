@@ -15,7 +15,6 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { OptionalCurrentUser } from '../auth/optional-current-user.decorator';
 import { Public } from '../auth/public.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
-import { ProjectsService } from './projects.service';
 import {
   Project as ProjectModel,
   ProjectSource,
@@ -28,6 +27,7 @@ import {
   ProjectListResponse,
   MyProjectResponse,
   ProjectUpdateFields,
+  ProjectsService,
 } from './projects.service';
 import { CreateProjectActorAssignmentDTO } from './dto/create-project-actor-assignment.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
