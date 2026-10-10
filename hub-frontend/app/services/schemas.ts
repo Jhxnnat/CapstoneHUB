@@ -224,6 +224,18 @@ export type ProjectDeliverableItem = {
   createdAt: string;
 };
 
+export type ProjectPhaseApprovalItem = {
+  userId: number;
+  fullName: string;
+  kind: "proposer" | "evaluator";
+  approvedAt: string | null;
+};
+
+export type ProjectPhaseApprovals = {
+  nextPhase: ProjectPhase | null;
+  required: ProjectPhaseApprovalItem[];
+};
+
 export type ProjectDetails = {
   id: number;
   name: string;
@@ -237,6 +249,8 @@ export type ProjectDetails = {
   canViewSensitiveData?: boolean;
   /** `true` cuando el usuario actual propuso el proyecto. */
   isProposer?: boolean;
+  /** Visto bueno de fase: quién falta y quién ya aprobó. */
+  phaseApprovals?: ProjectPhaseApprovals;
   source?: ProjectSource;
   proposer?: ProjectProposer;
   startDate: string | null;

@@ -11,6 +11,7 @@ import ProjectGeneralTab from "./project-general-tab";
 import ProjectMemberTabs from "./project-member-tabs";
 import ProjectMissingState from "./project-missing-state";
 import ProjectPhaseActions from "./project-phase-actions";
+import ProjectPhaseApprovals from "./project-phase-approvals";
 import ProjectTabs from "./project-tabs";
 import { visibleProjectTabs } from "./project-tabs-config";
 import { useCanEditProject } from "./use-can-edit-project";
@@ -110,6 +111,11 @@ export default function ProjectDetailsView({ id }: { readonly id: string }) {
                   ) : null}
                 </div>
               </div>
+
+              <ProjectPhaseApprovals
+                project={project}
+                onProjectChange={refresh}
+              />
 
               <TabsContent value="general" className="mt-6 flex flex-col gap-6">
                 <ProjectGeneralTab project={project} />

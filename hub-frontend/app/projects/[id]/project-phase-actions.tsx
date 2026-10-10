@@ -73,6 +73,14 @@ export default function ProjectPhaseActions({
     [project.milestones, currentPhase],
   );
 
+  const pendingApprovals = useMemo(
+    () =>
+      (project.phaseApprovals?.required ?? []).filter(
+        (approver) => approver.approvedAt == null,
+      ),
+    [project.phaseApprovals],
+  );
+
   if (!canManage || project.status !== "in_progress") {
     return null;
   }
@@ -87,6 +95,15 @@ export default function ProjectPhaseActions({
         `No puedes avanzar de fase: hay hitos mínimos pendientes (${pendingMinimums
           .map((milestone) => milestone.title)
           .join(", ")}).`,
+      );
+      return;
+    }
+
+    if (pendingApprovals.length > 0) {
+      setErrorMessage(
+        `No puedes avanzar de fase: falta el visto bueno de ${pendingApprovals
+          .map((approver) => approver.fullName)
+          .join(", ")}.`,
       );
       return;
     }
