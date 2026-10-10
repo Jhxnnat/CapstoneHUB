@@ -42,8 +42,7 @@ export default function ProjectPhaseApprovals({
 
   if (
     project.status !== "in_progress" ||
-    !approvals ||
-    approvals.nextPhase == null ||
+    approvals?.nextPhase == null ||
     approvals.required.length === 0
   ) {
     return null;
