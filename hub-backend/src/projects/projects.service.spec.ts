@@ -51,6 +51,7 @@ function createProjectDetail() {
     teamRequirements: null,
     expectedOutcomes: null,
     isProposer: false,
+    phaseApprovals: { nextPhase: ProjectPhase.semester_2, required: [] },
     deliverables: [],
     startDate: new Date(),
     endDate: null,
@@ -102,6 +103,7 @@ function createAuthorizationMock() {
     assertCanAssignActors: jest.fn().mockResolvedValue(undefined),
     assertAssignableUser: jest.fn().mockResolvedValue(undefined),
     assertCanEditProjectDetails: jest.fn().mockResolvedValue(undefined),
+    assertCanApproveProjectPhase: jest.fn().mockResolvedValue('proposer'),
     projectVisibilityWhere: jest.fn().mockReturnValue({}),
   };
 }
@@ -116,9 +118,15 @@ function createService(
 function createAdvancePrismaMock(options?: {
   status?: ProjectStatus;
   phase?: ProjectPhase;
+  proposerUserId?: number | null;
+  proposerFullName?: string;
+  evaluators?: { userId: number; fullName: string }[];
+  approvedUserIds?: number[];
 }) {
   const projectUpdate = jest.fn().mockResolvedValue(undefined);
   const changeCreate = jest.fn().mockResolvedValue(undefined);
+  const approvalUpsert = jest.fn().mockResolvedValue(undefined);
+  const approvalDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
   const transaction = {
     project: { update: projectUpdate },
     projectChangeHistory: { create: changeCreate },
@@ -127,17 +135,41 @@ function createAdvancePrismaMock(options?: {
     id: 10,
     status: options?.status ?? ProjectStatus.in_progress,
     phase: options?.phase ?? ProjectPhase.semester_1,
+    proposerUserId: options?.proposerUserId ?? null,
+    proposer:
+      options?.proposerFullName != null
+        ? { fullName: options.proposerFullName }
+        : null,
+    actorAssignments: (options?.evaluators ?? []).map((evaluator) => ({
+      userId: evaluator.userId,
+      user: { fullName: evaluator.fullName },
+    })),
+    phaseApprovals: (options?.approvedUserIds ?? []).map((userId) => ({
+      phase: ProjectPhase.semester_2,
+      approverUserId: userId,
+    })),
   });
   const milestoneFindMany = jest.fn().mockResolvedValue([]);
   const prisma = {
     project: { findUnique },
     projectMilestones: { findMany: milestoneFindMany },
+    projectPhaseApproval: {
+      upsert: approvalUpsert,
+      deleteMany: approvalDeleteMany,
+    },
     $transaction: jest.fn((callback: (value: unknown) => unknown) =>
       callback(transaction),
     ),
   };
 
-  return { prisma, projectUpdate, changeCreate, milestoneFindMany };
+  return {
+    prisma,
+    projectUpdate,
+    changeCreate,
+    milestoneFindMany,
+    approvalUpsert,
+    approvalDeleteMany,
+  };
 }
 
 describe('ProjectsService', () => {
@@ -377,6 +409,115 @@ describe('ProjectsService', () => {
     ).rejects.toThrow('final phase');
   });
 
+  it('blocks advancing the phase until the proposer and evaluators approve', async () => {
+    const { prisma, projectUpdate } = createAdvancePrismaMock({
+      proposerUserId: 7,
+      proposerFullName: 'Prop',
+      evaluators: [{ userId: 4, fullName: 'Eva' }],
+    });
+    const service = createService(prisma, createAuthorizationMock());
+
+    await expect(
+      service.advanceProjectPhase({ user: ADMIN_USER, projectId: 10 }),
+    ).rejects.toThrow('Prop (proposer), Eva (evaluator)');
+    expect(projectUpdate).not.toHaveBeenCalled();
+  });
+
+  it('advances the phase once every required approval is registered', async () => {
+    const { prisma, projectUpdate } = createAdvancePrismaMock({
+      proposerUserId: 7,
+      proposerFullName: 'Prop',
+      evaluators: [{ userId: 4, fullName: 'Eva' }],
+      approvedUserIds: [7, 4],
+    });
+    const service = createService(prisma, createAuthorizationMock());
+    jest.spyOn(service, 'project').mockResolvedValue(createProjectDetail());
+
+    await service.advanceProjectPhase({ user: ADMIN_USER, projectId: 10 });
+
+    expect(projectUpdate).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: { phase: ProjectPhase.semester_2 },
+    });
+  });
+
+  it('registers the phase approval of the current approver', async () => {
+    const { prisma, approvalUpsert } = createAdvancePrismaMock({
+      proposerUserId: EVALUATOR_USER.id,
+    });
+    const authorization = createAuthorizationMock();
+    const service = createService(prisma, authorization);
+    jest.spyOn(service, 'project').mockResolvedValue(createProjectDetail());
+
+    await service.approveProjectPhase({
+      user: EVALUATOR_USER,
+      projectId: 10,
+    });
+
+    expect(authorization.assertCanApproveProjectPhase).toHaveBeenCalledWith(
+      EVALUATOR_USER,
+      expect.objectContaining({ id: 10, proposerUserId: EVALUATOR_USER.id }),
+    );
+    expect(approvalUpsert).toHaveBeenCalledWith({
+      where: {
+        projectId_phase_approverUserId: {
+          projectId: 10,
+          phase: ProjectPhase.semester_2,
+          approverUserId: EVALUATOR_USER.id,
+        },
+      },
+      create: {
+        projectId: 10,
+        phase: ProjectPhase.semester_2,
+        approverUserId: EVALUATOR_USER.id,
+      },
+      update: {},
+    });
+  });
+
+  it('revokes the phase approval of the current approver', async () => {
+    const { prisma, approvalDeleteMany } = createAdvancePrismaMock({
+      proposerUserId: EVALUATOR_USER.id,
+    });
+    const service = createService(prisma, createAuthorizationMock());
+    jest.spyOn(service, 'project').mockResolvedValue(createProjectDetail());
+
+    await service.revokeProjectPhaseApproval({
+      user: EVALUATOR_USER,
+      projectId: 10,
+    });
+
+    expect(approvalDeleteMany).toHaveBeenCalledWith({
+      where: {
+        projectId: 10,
+        phase: ProjectPhase.semester_2,
+        approverUserId: EVALUATOR_USER.id,
+      },
+    });
+  });
+
+  it('rejects approving the phase when the project is not in progress', async () => {
+    const { prisma } = createAdvancePrismaMock({
+      status: ProjectStatus.approved,
+    });
+    const service = createService(prisma, createAuthorizationMock());
+
+    await expect(
+      service.approveProjectPhase({ user: EVALUATOR_USER, projectId: 10 }),
+    ).rejects.toThrow('must be in progress');
+  });
+
+  it('rejects approving the phase from the final phase', async () => {
+    const { prisma } = createAdvancePrismaMock({
+      phase: ProjectPhase.semester_2,
+    });
+    const service = createService(prisma, createAuthorizationMock());
+
+    await expect(
+      service.approveProjectPhase({ user: EVALUATOR_USER, projectId: 10 }),
+    ).rejects.toThrow('final phase');
+  });
+
   it('preserves duplicate-assignment protection', async () => {
     const createAssignment = jest.fn();
     const prisma = {
@@ -559,6 +700,7 @@ describe('ProjectsService', () => {
       changeHistory: [],
       attachments: [],
       reports: [],
+      phaseApprovals: [],
       description: 'Description',
       context: 'Context',
       endDate: null,
@@ -732,6 +874,7 @@ describe('ProjectsService', () => {
       proposerUserId: EVALUATOR_USER.id,
       actorAssignments: [],
       observations: [],
+      phaseApprovals: [],
     };
     const prisma = {
       project: { findFirst: jest.fn().mockResolvedValue(project) },
@@ -830,7 +973,9 @@ describe('ProjectsService', () => {
         expectedOutcomes: null,
         deliverables: [{ description: 'One' }],
       };
-      const update = jest.fn().mockResolvedValue(createProjectDetail());
+      const update = jest
+        .fn()
+        .mockResolvedValue({ ...createProjectDetail(), phaseApprovals: [] });
       const createMany = jest.fn().mockResolvedValue({ count: 1 });
       const transaction = {
         project: { update },

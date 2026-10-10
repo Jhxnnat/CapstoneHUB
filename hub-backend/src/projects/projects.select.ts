@@ -18,6 +18,11 @@ import {
   mapReport,
   reportSelect,
 } from '../reports/reports.select';
+import {
+  PhaseApprovalKind,
+  nextProjectPhase,
+  requiredPhaseApprovers,
+} from './projects.phase';
 
 const projectStatusHistorySelect = {
   id: true,
@@ -67,6 +72,7 @@ const projectChangeHistorySelect = {
 
 export const projectInclude = {
   naturalProposer: true,
+  proposer: { select: { id: true, fullName: true } },
   observations: { select: projectObservationSelect },
   actorAssignments: { include: { user: true } },
   milestones: {
@@ -84,6 +90,9 @@ export const projectInclude = {
   attachments: { where: { reportId: null }, select: attachmentSelect },
   reports: { select: reportSelect },
   deliverables: true,
+  phaseApprovals: {
+    select: { phase: true, approverUserId: true, approvedAt: true },
+  },
 } as const satisfies Prisma.ProjectInclude;
 
 export type ProjectWithRelations = Prisma.ProjectGetPayload<{
@@ -144,6 +153,19 @@ export type ProjectDeliverableResponse = {
   createdAt: Date;
 };
 
+export type ProjectPhaseApprovalResponse = {
+  /** Fase que se aprobaría al avanzar; `null` si ya es la fase final. */
+  nextPhase: ProjectPhase | null;
+  /** Aprobaciones exigidas: proponente (si existe) y evaluadores asignados. */
+  required: {
+    userId: number;
+    fullName: string;
+    kind: PhaseApprovalKind;
+    /** `null` mientras el aprobador no haya dado su visto bueno. */
+    approvedAt: Date | null;
+  }[];
+};
+
 export type ProjectDetailResponse = ProjectListResponse & {
   description: string;
   context: string;
@@ -156,6 +178,8 @@ export type ProjectDetailResponse = ProjectListResponse & {
   deliverables: ProjectDeliverableResponse[];
   /** `true` cuando el espectador es el proponente del proyecto. */
   isProposer: boolean;
+  /** Visto bueno de fase: quién falta y quién ya aprobó. */
+  phaseApprovals: ProjectPhaseApprovalResponse;
   createdAt: Date;
   updatedAt: Date;
   observations: {
@@ -332,6 +356,41 @@ export function mapProjectListResponse(
   };
 }
 
+function mapPhaseApprovals(
+  project: ProjectWithRelations,
+  canViewSensitiveData: boolean,
+): ProjectPhaseApprovalResponse {
+  const nextPhase = nextProjectPhase(project.phase);
+  if (!nextPhase || !canViewSensitiveData) {
+    return { nextPhase, required: [] };
+  }
+
+  const approvals = new Map(
+    project.phaseApprovals
+      .filter((approval) => approval.phase === nextPhase)
+      .map((approval) => [approval.approverUserId, approval.approvedAt]),
+  );
+
+  const required = requiredPhaseApprovers({
+    proposerUserId: project.proposerUserId,
+    proposerFullName: project.proposer?.fullName ?? null,
+    evaluators: project.actorAssignments
+      .filter((assignment) => assignment.role === ActorRole.evaluator)
+      .map((assignment) => ({
+        userId: assignment.userId,
+        fullName: assignment.user.fullName,
+      })),
+  });
+
+  return {
+    nextPhase,
+    required: required.map((approver) => ({
+      ...approver,
+      approvedAt: approvals.get(approver.userId) ?? null,
+    })),
+  };
+}
+
 export function mapProjectDetailResponse(
   project: ProjectWithRelations,
   canViewSensitiveData: boolean,
@@ -348,6 +407,7 @@ export function mapProjectDetailResponse(
     teamRequirements: project.teamRequirements,
     expectedOutcomes: project.expectedOutcomes,
     isProposer: viewer != null && project.proposerUserId === viewer.id,
+    phaseApprovals: mapPhaseApprovals(project, canViewSensitiveData),
     deliverables: project.deliverables
       .slice()
       .sort((left, right) => left.id - right.id)

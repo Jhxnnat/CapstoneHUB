@@ -304,6 +304,28 @@ export class ProjectsController {
     });
   }
 
+  @Post(':id/phase/approvals')
+  async approveProjectPhase(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProjectDetailResponse> {
+    return this.projectService.approveProjectPhase({
+      user,
+      projectId: id,
+    });
+  }
+
+  @Delete(':id/phase/approvals')
+  async revokeProjectPhaseApproval(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProjectDetailResponse> {
+    return this.projectService.revokeProjectPhaseApproval({
+      user,
+      projectId: id,
+    });
+  }
+
   @Delete(':id')
   async deleteProject(
     @Param('id', ParseIntPipe) id: number,

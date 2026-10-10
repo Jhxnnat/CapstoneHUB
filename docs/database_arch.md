@@ -45,6 +45,11 @@ Es dueña de todos los registros relacionados mediante borrado en cascada.
 en `semester_1` y solo puede avanzar a `semester_2`; cada avance se registra en
 `ProjectChangeHistory` con `field = "phase"`.
 
+El avance exige, además de los hitos mínimos, el **visto bueno de fase**: el
+proponente del proyecto y cada evaluador asignado deben aprobar la fase destino
+en `ProjectPhaseApproval`. Sin esas aprobaciones el avance responde `409`
+listando quién falta; el bloqueo también aplica al `admin`.
+
 #### Privacidad y visibilidad
 
 - `isPrivate` (por defecto `true`) lo decide el proponente en el formulario de
@@ -110,6 +115,15 @@ Entregables programados con `title`, `description` opcional, `dueDate` y un
 flag `completed`. `isMinimum` marca los **hitos mínimos**: los obligatorios para
 avanzar de fase o cerrar el proyecto. `phase` (`ProjectPhase` opcional) indica a
 qué semestre pertenece el hito; un hito mínimo sin fase se considera global.
+
+### ProjectPhaseApproval
+
+Visto bueno para avanzar de fase: una fila por aprobador (`approverUserId`), con
+la fase **destino** aprobada (`phase`) y `approvedAt`. La clave única
+`(projectId, phase, approverUserId)` hace la aprobación idempotente. Los
+aprobadores exigidos son el proponente (`proposerUserId`, si existe) y cada
+evaluador asignado (`ActorRole.evaluator`); la aprobación se puede retirar antes
+del avance y las filas quedan como registro histórico.
 
 ### ProjectAttachment
 
@@ -261,6 +275,14 @@ classDiagram
         +DateTime createdAt
     }
 
+    class ProjectPhaseApproval {
+        +Int id
+        +Int projectId
+        +ProjectPhase phase
+        +Int approverUserId
+        +DateTime approvedAt
+    }
+
     class ProjectAttachment {
         +Int id
         +Int projectId
@@ -371,6 +393,7 @@ classDiagram
     User "0..1" --> "0..*" ProjectReport : createdReports
     User "0..1" --> "0..*" ProjectReportContent : reportContents
     User "0..1" --> "0..*" Project : proposedProjects
+    User "0..1" --> "0..*" ProjectPhaseApproval : phaseApprovals
 
     Project "1" *-- "0..*" ProjectSchool : schools
     Project "1" *-- "0..*" ProjectDeliverable : deliverables
@@ -380,6 +403,7 @@ classDiagram
     Project "1" *-- "0..*" ProjectStatusHistory : statusHistory
     Project "1" *-- "0..*" ProjectChangeHistory : changeHistory
     Project "1" *-- "0..*" ProjectMilestones : milestones
+    Project "1" *-- "0..*" ProjectPhaseApproval : phaseApprovals
     Project "1" *-- "0..*" ProjectAttachment : attachments
     Project "1" *-- "0..*" ProjectReport : reports
     ProjectReport "1" *-- "0..*" ProjectReportContent : contents
@@ -393,6 +417,7 @@ classDiagram
     Project ..> ProjectPhase
     ProjectStatusHistory ..> ProjectStatus
     ProjectMilestones ..> ProjectPhase
+    ProjectPhaseApproval ..> ProjectPhase
     ProjectReport ..> ReportStatus
     ProjectReportContent ..> ReportContentKind
 ```

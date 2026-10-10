@@ -92,6 +92,52 @@ describe('AuthorizationService', () => {
     expect(findAssignment).not.toHaveBeenCalled();
   });
 
+  it('lets the project proposer approve the phase without an assignment', async () => {
+    const findAssignment = jest.fn();
+    const service = new AuthorizationService({
+      projectActorAssignment: { findFirst: findAssignment },
+    } as never);
+
+    await expect(
+      service.assertCanApproveProjectPhase(user([UserRole.student]), {
+        id: 10,
+        proposerUserId: 7,
+      }),
+    ).resolves.toBe('proposer');
+    expect(findAssignment).not.toHaveBeenCalled();
+  });
+
+  it('lets an assigned evaluator approve the phase', async () => {
+    const findAssignment = jest.fn().mockResolvedValue({ id: 3 });
+    const service = new AuthorizationService({
+      projectActorAssignment: { findFirst: findAssignment },
+    } as never);
+
+    await expect(
+      service.assertCanApproveProjectPhase(user([UserRole.evaluator]), {
+        id: 10,
+        proposerUserId: null,
+      }),
+    ).resolves.toBe('evaluator');
+    expect(findAssignment).toHaveBeenCalledWith({
+      where: { projectId: 10, userId: 7, role: ActorRole.evaluator },
+      select: { id: true },
+    });
+  });
+
+  it('rejects phase approvals from users who are neither proposer nor assigned evaluator', async () => {
+    const service = new AuthorizationService({
+      projectActorAssignment: { findFirst: jest.fn().mockResolvedValue(null) },
+    } as never);
+
+    await expect(
+      service.assertCanApproveProjectPhase(user([UserRole.admin]), {
+        id: 10,
+        proposerUserId: 999,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   const editableProject = (
     overrides: Partial<{
       id: number;

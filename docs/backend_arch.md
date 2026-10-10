@@ -173,9 +173,14 @@ closed, cancelled}`, `paused → {in_progress, cancelled}`).
 La **fase** (`phase`, `semester_1` → `semester_2`) es independiente del estado:
 un proyecto puede estar `in_progress` y avanzar de semestre sin cambiar de
 estado. `POST /projects/:id/phase/advance` avanza la fase solo cuando el
-proyecto está `in_progress` y todos los **hitos mínimos** de la fase actual (más
-los globales, sin fase) están completos; si no, responde `409` con los hitos
-pendientes. El avance se registra en `ProjectChangeHistory` (`field = "phase"`).
+proyecto está `in_progress`, todos los **hitos mínimos** de la fase actual (más
+los globales, sin fase) están completos y el **visto bueno de fase** está
+completo: el proponente del proyecto y cada evaluador asignado aprobaron la fase
+destino con `POST /projects/:id/phase/approvals`. Si falta algo, responde `409`
+con los pendientes. El bloqueo es duro, sin excepción para `admin`, y el avance
+se registra en `ProjectChangeHistory` (`field = "phase"`). Cada aprobador puede
+retirar su visto bueno con `DELETE /projects/:id/phase/approvals` mientras no se
+haya avanzado.
 
 Los **hitos mínimos** son los marcados con `isMinimum`. Son obligatorios para
 avanzar de fase y para cerrar el proyecto: la transición `in_progress → closed`
@@ -362,7 +367,9 @@ Comandos: `npx prisma migrate dev`, `npm run seed` (y variantes como
 | `PUT` | `/projects/:id` | Editar los datos (admin, evaluador, coordinador/asesor asignado o proponente en revisión; `409` si está finalizado/rechazado). Registra historial por campo. |
 | `DELETE` | `/projects/:id` | Borrar (admin o coordinador asignado). |
 | `PATCH` | `/projects/:id/status` | Cambiar estado (registra historial). |
-| `POST` | `/projects/:id/phase/advance` | Avanzar de fase (semestre) si los hitos mínimos de la fase actual están completos (`409` si no). |
+| `POST` | `/projects/:id/phase/advance` | Avanzar de fase (semestre) si los hitos mínimos están completos y el proponente y los evaluadores dieron su visto bueno (`409` si no). |
+| `POST` | `/projects/:id/phase/approvals` | Dar el visto bueno de fase (proponente o evaluador asignado). |
+| `DELETE` | `/projects/:id/phase/approvals` | Retirar el visto bueno de fase propio. |
 | `POST` | `/projects/:id/actors` | Asignar un usuario a un proyecto. |
 | `GET/POST` | `/projects/:id/observations` | Listar / agregar observaciones. |
 | `GET/POST/PATCH/DELETE` | `/projects/:id/milestones` | Gestionar hitos: marca de mínimo (`isMinimum`), fase y entregas vinculadas (`reportIds`). |
