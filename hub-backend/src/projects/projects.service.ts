@@ -30,8 +30,15 @@ import {
   mapProjectListResponse,
   projectInclude,
 } from './projects.select';
+import {
+  formatPendingApprovers,
+  nextProjectPhase,
+  requiredPhaseApprovers,
+  RequiredPhaseApprover,
+} from './projects.phase';
 
 export * from './projects.select';
+export * from './projects.phase';
 
 export function isValidProjectStatusTransition(
   previousStatus: ProjectStatus,
@@ -66,24 +73,38 @@ export function isValidProjectStatusTransition(
   return transitions[previousStatus].includes(nextStatus);
 }
 
-/**
- * Siguiente fase (semestre) de un proyecto, o `null` si ya está en la última.
- */
-export function nextProjectPhase(phase: ProjectPhase): ProjectPhase | null {
-  switch (phase) {
-    case ProjectPhase.semester_1:
-      return ProjectPhase.semester_2;
-    case ProjectPhase.semester_2:
-      return null;
-  }
-}
-
 type PendingMinimumMilestone = { id: number; title: string };
 
 function formatPendingMilestones(
   milestones: PendingMinimumMilestone[],
 ): string {
   return milestones.map((milestone) => milestone.title).join(', ');
+}
+
+/** Aprobadores de la siguiente fase que todavía no dieron su visto bueno. */
+function pendingPhaseApprovers(
+  project: {
+    proposerUserId: number | null;
+    proposer: { fullName: string } | null;
+    actorAssignments: { userId: number; user: { fullName: string } }[];
+    phaseApprovals: { phase: ProjectPhase; approverUserId: number }[];
+  },
+  nextPhase: ProjectPhase,
+): RequiredPhaseApprover[] {
+  const approved = new Set(
+    project.phaseApprovals
+      .filter((approval) => approval.phase === nextPhase)
+      .map((approval) => approval.approverUserId),
+  );
+
+  return requiredPhaseApprovers({
+    proposerUserId: project.proposerUserId,
+    proposerFullName: project.proposer?.fullName ?? null,
+    evaluators: project.actorAssignments.map((assignment) => ({
+      userId: assignment.userId,
+      fullName: assignment.user.fullName,
+    })),
+  }).filter((approver) => !approved.has(approver.userId));
 }
 
 export const DEFAULT_FINAL_MILESTONE_TITLE = 'Documento final';
@@ -667,7 +688,8 @@ export class ProjectsService {
   }
   /**
    * Avanza el proyecto al siguiente semestre (fase) cuando todos sus hitos
-   * mínimos de la fase actual están completos.
+   * mínimos de la fase actual están completos y el proponente y los evaluadores
+   * asignados ya dieron su visto bueno.
    */
   async advanceProjectPhase(params: {
     user: AuthenticatedUser;
@@ -676,7 +698,20 @@ export class ProjectsService {
     const { user, projectId } = params;
     const currentProject = await this.prisma.project.findUnique({
       where: { id: projectId },
-      select: { id: true, status: true, phase: true },
+      select: {
+        id: true,
+        status: true,
+        phase: true,
+        proposerUserId: true,
+        proposer: { select: { fullName: true } },
+        actorAssignments: {
+          where: { role: ActorRole.evaluator },
+          select: { userId: true, user: { select: { fullName: true } } },
+        },
+        phaseApprovals: {
+          select: { phase: true, approverUserId: true },
+        },
+      },
     });
     if (!currentProject) {
       throw new NotFoundException(`Project ${projectId} not found`);
@@ -704,6 +739,13 @@ export class ProjectsService {
       );
     }
 
+    const pendingApprovers = pendingPhaseApprovers(currentProject, nextPhase);
+    if (pendingApprovers.length > 0) {
+      throw new ConflictException(
+        `Cannot advance to the next phase until it is approved by: ${formatPendingApprovers(pendingApprovers)}`,
+      );
+    }
+
     await this.prisma.$transaction(async (transaction) => {
       await transaction.project.update({
         where: { id: projectId },
@@ -720,6 +762,101 @@ export class ProjectsService {
       });
     });
 
+    const project = await this.project({ id: projectId }, user);
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+    return project;
+  }
+  /**
+   * Registra el visto bueno del usuario actual (proponente del proyecto o
+   * evaluador asignado) para avanzar a la siguiente fase. Es idempotente.
+   */
+  async approveProjectPhase(params: {
+    user: AuthenticatedUser;
+    projectId: number;
+  }): Promise<ProjectDetailResponse> {
+    const { user, projectId } = params;
+    const nextPhase = await this.loadApprovablePhaseProject(user, projectId);
+
+    await this.prisma.projectPhaseApproval.upsert({
+      where: {
+        projectId_phase_approverUserId: {
+          projectId,
+          phase: nextPhase,
+          approverUserId: user.id,
+        },
+      },
+      create: { projectId, phase: nextPhase, approverUserId: user.id },
+      update: {},
+    });
+
+    return this.projectDetailOrThrow(projectId, user);
+  }
+  /**
+   * Retira el visto bueno del usuario actual para la siguiente fase. Es
+   * idempotente: si no había aprobado, no falla.
+   */
+  async revokeProjectPhaseApproval(params: {
+    user: AuthenticatedUser;
+    projectId: number;
+  }): Promise<ProjectDetailResponse> {
+    const { user, projectId } = params;
+    const nextPhase = await this.loadApprovablePhaseProject(user, projectId);
+
+    await this.prisma.projectPhaseApproval.deleteMany({
+      where: { projectId, phase: nextPhase, approverUserId: user.id },
+    });
+
+    return this.projectDetailOrThrow(projectId, user);
+  }
+  /**
+   * Carga el proyecto y exige que el usuario pueda aprobar su siguiente fase;
+   * devuelve la fase destino de la aprobación.
+   */
+  private async loadApprovablePhaseProject(
+    user: AuthenticatedUser,
+    projectId: number,
+  ): Promise<ProjectPhase> {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, status: true, phase: true, proposerUserId: true },
+    });
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    const nextPhase = this.assertPhaseApprovable(project);
+    await this.authorization.assertCanApproveProjectPhase(user, project);
+    return nextPhase;
+  }
+  /**
+   * Valida que el proyecto admita aprobaciones de fase y devuelve la fase
+   * destino de la aprobación.
+   */
+  private assertPhaseApprovable(project: {
+    status: ProjectStatus;
+    phase: ProjectPhase;
+  }): ProjectPhase {
+    if (project.status !== ProjectStatus.in_progress) {
+      throw new BadRequestException(
+        'The project must be in progress to approve its phase',
+      );
+    }
+
+    const nextPhase = nextProjectPhase(project.phase);
+    if (!nextPhase) {
+      throw new BadRequestException(
+        'The project is already in its final phase',
+      );
+    }
+    return nextPhase;
+  }
+  /** Detalle del proyecto o 404, como el resto de mutaciones. */
+  private async projectDetailOrThrow(
+    projectId: number,
+    user: AuthenticatedUser,
+  ): Promise<ProjectDetailResponse> {
     const project = await this.project({ id: projectId }, user);
     if (!project) {
       throw new NotFoundException(`Project ${projectId} not found`);

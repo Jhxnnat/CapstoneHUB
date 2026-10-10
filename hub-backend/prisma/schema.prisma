@@ -85,6 +85,7 @@ model User {
   reviewedReports        ProjectReport[]          @relation("ReportReviewedBy")
   reportContents         ProjectReportContent[]   @relation("ReportContentCreatedBy")
   proposedProjects       Project[]                @relation("ProjectProposedBy")
+  phaseApprovals         ProjectPhaseApproval[]
 
   @@index([fullName], map: "idx_user_full_name")
   @@map("user")
@@ -138,6 +139,7 @@ model Project {
   reports          ProjectReport[]
   deliverables     ProjectDeliverable[]
   changeHistory    ProjectChangeHistory[]
+  phaseApprovals   ProjectPhaseApproval[]
 
   @@index([status], map: "idx_project_status")
   @@index([startDate], map: "idx_project_start_date")
@@ -272,6 +274,22 @@ model ProjectMilestones {
   @@index([completed], map: "idx_project_milestones_completed")
   @@index([isMinimum], map: "idx_project_milestones_is_minimum")
   @@map("project_milestones")
+}
+
+model ProjectPhaseApproval {
+  id             Int          @id @default(autoincrement())
+  projectId      Int          @map("project_id")
+  phase          ProjectPhase
+  approverUserId Int          @map("approver_user_id")
+  approvedAt     DateTime     @default(now()) @map("approved_at")
+
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  approverUser User    @relation(fields: [approverUserId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, phase, approverUserId], map: "uk_project_phase_approval")
+  @@index([projectId], map: "idx_project_phase_approval_project_id")
+  @@index([approverUserId], map: "idx_project_phase_approval_approver_user_id")
+  @@map("project_phase_approval")
 }
 
 model ProjectAttachment {

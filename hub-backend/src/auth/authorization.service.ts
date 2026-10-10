@@ -11,6 +11,7 @@ import {
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma.service';
 import { AuthenticatedUser } from './auth.types';
+import { PhaseApprovalKind } from '../projects/projects.phase';
 
 @Injectable()
 export class AuthorizationService {
@@ -165,6 +166,37 @@ export class AuthorizationService {
 
     this.assertRole(user, UserRole.coordinator);
     await this.assertProjectAssignment(user, projectId, ActorRole.coordinator);
+  }
+
+  /**
+   * Exige que el usuario pueda dar su visto bueno para avanzar de fase: el
+   * proponente del proyecto o un evaluador asignado. Devuelve el papel con el
+   * que participa en la aprobación.
+   */
+  async assertCanApproveProjectPhase(
+    user: AuthenticatedUser,
+    project: { id: number; proposerUserId: number | null },
+  ): Promise<PhaseApprovalKind> {
+    if (project.proposerUserId === user.id) {
+      return 'proposer';
+    }
+
+    const assignment = await this.prisma.projectActorAssignment.findFirst({
+      where: {
+        projectId: project.id,
+        userId: user.id,
+        role: ActorRole.evaluator,
+      },
+      select: { id: true },
+    });
+
+    if (assignment) {
+      return 'evaluator';
+    }
+
+    throw new ForbiddenException(
+      'Only the project proposer or an assigned evaluator can approve the phase',
+    );
   }
 
   /**

@@ -152,6 +152,38 @@ export async function advanceProjectPhase(
   return (await response.json()) as ProjectDetails;
 }
 
+export async function approveProjectPhase(
+  id: string,
+): Promise<ProjectDetails> {
+  const response = await fetch(
+    getApiUrl(`/api/projects/${id}/phase/approvals`),
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+    },
+  );
+
+  await ensureOk(response, { action: "dar el visto bueno de fase" });
+
+  return (await response.json()) as ProjectDetails;
+}
+
+export async function revokeProjectPhaseApproval(
+  id: string,
+): Promise<ProjectDetails> {
+  const response = await fetch(
+    getApiUrl(`/api/projects/${id}/phase/approvals`),
+    {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    },
+  );
+
+  await ensureOk(response, { action: "retirar el visto bueno de fase" });
+
+  return (await response.json()) as ProjectDetails;
+}
+
 export async function updateProject(
   id: string,
   payload: UpdateProjectPayload,
