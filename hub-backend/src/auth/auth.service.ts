@@ -12,7 +12,11 @@ import { RegisterUserDto } from './dto/register-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthenticatedUser } from './auth.types';
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'crypto';
+import {
+  randomBytes,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+} from 'node:crypto';
 import { promisify } from 'util';
 import { JwtService } from '@nestjs/jwt';
 import { AUTH_TOKEN_RENEW_AFTER_SECONDS } from './auth.token';

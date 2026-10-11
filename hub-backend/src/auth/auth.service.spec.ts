@@ -1,6 +1,6 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes, scrypt as scryptCallback } from 'crypto';
+import { randomBytes, scrypt as scryptCallback } from 'node:crypto';
 import { promisify } from 'util';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { AuthService } from './auth.service';
