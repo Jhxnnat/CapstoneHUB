@@ -293,7 +293,7 @@ export class AuthService implements OnModuleInit {
       select: { id: true, isActive: true, passwordHash: true },
     });
 
-    if (!user || !user.isActive) {
+    if (!user?.isActive) {
       throw new UnauthorizedException('User is inactive or does not exist');
     }
 
