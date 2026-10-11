@@ -96,10 +96,35 @@ export function notifyUnauthorized(): void {
   unauthorizedHandler?.();
 }
 
+/**
+ * Manejador global de renovación: recibe el token reemitido por el backend
+ * (`x-access-token`) para guardarlo en la sesión del navegador.
+ */
+type TokenRenewalHandler = (accessToken: string) => void;
+
+let tokenRenewalHandler: TokenRenewalHandler | null = null;
+
+export function setTokenRenewalHandler(
+  handler: TokenRenewalHandler | null,
+): void {
+  tokenRenewalHandler = handler;
+}
+
+/** Guarda el token reemitido, si la respuesta trae uno. */
+export function captureRenewedToken(response: Response): void {
+  const renewedToken = response.headers.get("x-access-token");
+
+  if (renewedToken) {
+    tokenRenewalHandler?.(renewedToken);
+  }
+}
+
 export async function ensureOk(
   response: Response,
   options: ApiErrorOptions,
 ): Promise<void> {
+  captureRenewedToken(response);
+
   if (response.status === 401) {
     notifyUnauthorized();
   }

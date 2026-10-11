@@ -36,9 +36,14 @@ export async function proxyRequest(
   const contentType =
     response.headers.get("content-type") ?? "application/json";
   const body = await response.text();
+  // Renovación deslizante: el token reemitido viaja al navegador.
+  const renewedToken = response.headers.get("x-access-token");
 
   return new NextResponse(body, {
     status: response.status,
-    headers: { "Content-Type": contentType },
+    headers: {
+      "Content-Type": contentType,
+      ...(renewedToken ? { "x-access-token": renewedToken } : {}),
+    },
   });
 }
