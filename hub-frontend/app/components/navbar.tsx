@@ -84,10 +84,10 @@ export default function Navbar() {
             onClick={closeMobile}
             className="inline-flex items-center gap-4 rounded-2xl transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-utb-blue-pale/60 focus-visible:outline-none sm:gap-5"
           >
-            <UtbLogo className="h-14 w-auto text-white sm:h-16" />
+            <UtbLogo className="h-11 w-auto text-white sm:h-16" />
 
             <span
-              className="h-14 w-px shrink-0 bg-white/20 sm:h-16"
+              className="h-11 w-px shrink-0 bg-white/20 sm:h-16"
               aria-hidden="true"
             />
 
@@ -95,7 +95,7 @@ export default function Navbar() {
               <span className="block text-[9px] font-bold tracking-[0.16em] text-utb-blue-pale/70 uppercase sm:text-[11px] sm:tracking-[0.22em]">
                 Universidad Tecnológica de Bolívar
               </span>
-              <span className="block text-2xl font-bold tracking-tight text-white sm:text-4xl">
+              <span className="block text-xl font-bold tracking-tight text-white sm:text-4xl">
                 Capstone<span className="text-utb-blue-pale">HUB</span>
               </span>
             </span>

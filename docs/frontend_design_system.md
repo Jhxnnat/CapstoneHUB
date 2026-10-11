@@ -167,7 +167,7 @@ automáticamente.
 | Componente | Cambio |
 | --- | --- |
 | `card.tsx` | `rounded-2xl`, `shadow-sm ring-1 ring-utb-blue/10`, hover a `shadow-md`. |
-| `tabs.tsx` | Lista en tarjeta blanca; pestaña activa en píldora `bg-utb-blue`. |
+| `tabs.tsx` | Lista en tarjeta blanca; pestaña activa en píldora `bg-utb-blue`. En pantallas pequeñas la lista se envuelve en filas (`flex-wrap`) en vez de recortarse. |
 | `button.tsx` | Radio a `rounded-xl`. |
 | `input.tsx`, `textarea.tsx`, `select.tsx` | Radio a `rounded-xl`. |
 
