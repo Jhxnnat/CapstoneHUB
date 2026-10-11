@@ -65,7 +65,7 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: postgres # NOSONAR - credenciales de una BD de test efímera en CI
           POSTGRES_DB: capstonehub_test
         ports:
           - 5432:5432
@@ -104,7 +104,7 @@ jobs:
         run: npm run test:e2e
         working-directory: hub-backend
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: node_modules/.bin/playwright install --with-deps chromium
         working-directory: hub-frontend
       - name: Frontend e2e (Playwright)
         run: npm run test:e2e

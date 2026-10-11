@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { randomUUID } from 'node:crypto';
 
 export type AuthUser = {
   id: number;
@@ -14,15 +15,18 @@ export type AuthSession = {
   accessToken: string;
 };
 
+/** Contraseña de fixture para los tests e2e (no es un secreto real). */
+export const TEST_PASSWORD = 'password123'; // NOSONAR
+
 /** Correo único por ejecución, para no colisionar entre corridas. */
 export function uniqueEmail(prefix = 'e2e'): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+  return `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}@example.com`;
 }
 
 export async function registerUser(
   app: INestApplication<App>,
   email: string,
-  password = 'password123',
+  password = TEST_PASSWORD,
 ): Promise<AuthSession> {
   const response = await request(app.getHttpServer())
     .post('/auth/register')

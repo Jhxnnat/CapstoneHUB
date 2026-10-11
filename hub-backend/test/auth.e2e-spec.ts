@@ -2,7 +2,13 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { closeTestApp, createTestApp } from './helpers/e2e';
-import { bearer, loginUser, registerUser, uniqueEmail } from './helpers/auth';
+import {
+  bearer,
+  loginUser,
+  registerUser,
+  TEST_PASSWORD,
+  uniqueEmail,
+} from './helpers/auth';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
@@ -61,7 +67,7 @@ describe('Auth (e2e)', () => {
       .patch('/auth/me/password')
       .set(bearer(accessToken))
       .send({
-        currentPassword: 'password123',
+        currentPassword: TEST_PASSWORD,
         newPassword: 'nueva-password-123',
       })
       .expect(200);

@@ -1,4 +1,5 @@
 import type { APIRequestContext } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 export const BACKEND_URL =
   process.env.E2E_BACKEND_URL ?? "http://localhost:3001";
@@ -6,7 +7,7 @@ export const BACKEND_URL =
 export const PASSWORD = "password123";
 
 export function uniqueEmail(prefix = "e2e"): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+  return `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}@example.com`;
 }
 
 /** Registra un proponente directo contra el backend y devuelve su sesión. */
