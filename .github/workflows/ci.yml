@@ -56,3 +56,56 @@ jobs:
         run: npm run lint
       - name: Build
         run: npm run build
+
+  e2e:
+    name: End-to-end tests (supertest + Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: capstonehub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capstonehub_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capstonehub_test
+      AUTH_SECRET: test-secret-that-is-at-least-32-characters
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "26"
+      - name: Install backend dependencies
+        run: npm ci --ignore-scripts
+        working-directory: hub-backend
+      - name: Install frontend dependencies
+        run: npm ci --ignore-scripts
+        working-directory: hub-frontend
+      - name: Generate Prisma client
+        run: node_modules/.bin/prisma generate
+        working-directory: hub-backend
+      - name: Apply migrations
+        run: node_modules/.bin/prisma migrate deploy
+        working-directory: hub-backend
+      - name: Build backend
+        run: npm run build
+        working-directory: hub-backend
+      - name: Build frontend
+        run: npm run build
+        working-directory: hub-frontend
+      - name: Backend e2e (supertest)
+        run: npm run test:e2e
+        working-directory: hub-backend
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: hub-frontend
+      - name: Frontend e2e (Playwright)
+        run: npm run test:e2e
+        working-directory: hub-frontend
