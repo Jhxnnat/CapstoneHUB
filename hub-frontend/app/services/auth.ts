@@ -156,3 +156,21 @@ export async function updateUserRoles(
 
   return (await response.json()) as AuthUser;
 }
+
+export async function changePassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  const token = getAuthToken();
+
+  const response = await fetch("/api/auth/me/password", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  await ensureOk(response, { action: "cambiar la contraseña" });
+}

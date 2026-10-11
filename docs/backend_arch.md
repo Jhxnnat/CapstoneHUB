@@ -88,6 +88,10 @@ librerías externas). `AuthGuard` valida el header
 `Authorization: Bearer <token>`, comprueba la expiración y carga el usuario en
 `request.user`.
 
+`PATCH /auth/me/password` permite cambiar la contraseña propia: valida la actual
+con scrypt, exige mínimo 8 caracteres y que la nueva sea distinta. Si la actual
+no coincide responde `400` (no `401`, para no cerrar la sesión global).
+
 Roles globales (`UserRole`): `admin`, `evaluator`, `coordinator`, `advisor`,
 `student`, `proposer`. Roles dentro de un proyecto (`ActorRole`): `advisor`,
 `coordinator`, `student`, `evaluator`.
@@ -360,6 +364,7 @@ Comandos: `npx prisma migrate dev`, `npm run seed` (y variantes como
 | `POST` | `/auth/login` | Iniciar sesión y recibir un token de acceso (público). |
 | `GET/POST` | `/auth/users` | Listar / crear usuarios (admin). |
 | `PATCH` | `/auth/users/:id/roles` | Reemplazar los roles de un usuario (admin). |
+| `PATCH` | `/auth/me/password` | Cambiar la contraseña propia (valida la actual; `400` si no coincide o si la nueva es igual). |
 | `GET` | `/projects` | Listar los proyectos visibles para el solicitante (público: solo finalizados y no privados). |
 | `GET` | `/projects/mine` | Proyectos propuestos y asignados al usuario. |
 | `GET` | `/projects/:id` | Detalle (404 si el proyecto es privado y el solicitante no es miembro). |

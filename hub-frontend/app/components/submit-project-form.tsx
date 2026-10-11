@@ -40,6 +40,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { createClientId } from "@/lib/ids";
 import { RiAddLine, RiDeleteBinLine } from "@remixicon/react";
 
 const MAX_NAME_LENGTH = 100;
@@ -97,7 +98,7 @@ type FormState = {
 
 function createDeliverable(): DeliverableFormItem {
   return {
-    id: crypto.randomUUID(),
+    id: createClientId(),
     value: "",
   };
 }

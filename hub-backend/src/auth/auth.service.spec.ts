@@ -1,6 +1,18 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { randomBytes, scrypt as scryptCallback } from 'crypto';
+import { promisify } from 'util';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { AuthService } from './auth.service';
+
+const scrypt = promisify(scryptCallback);
+
+/** Genera un hash con el mismo formato que `AuthService.hashPassword`. */
+async function hashPasswordForTest(password: string): Promise<string> {
+  const salt = randomBytes(16).toString('hex');
+  const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
+
+  return `scrypt$${salt}$${derivedKey.toString('hex')}`;
+}
 
 type CreateUserArgs = {
   data: {
@@ -221,5 +233,91 @@ describe('AuthService registration', () => {
         password: 'password123',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('AuthService password change', () => {
+  const CURRENT_PASSWORD = 'current-password';
+  const NEW_PASSWORD = 'new-password-123';
+
+  beforeEach(() => {
+    process.env.AUTH_SECRET = 'test-secret-that-is-at-least-32-characters';
+  });
+
+  async function createPrismaMock(password: string) {
+    const passwordHash = await hashPasswordForTest(password);
+    const update = jest.fn().mockResolvedValue(undefined);
+    const prisma = {
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 7, isActive: true, passwordHash }),
+        update,
+      },
+    };
+
+    return { prisma, update, passwordHash };
+  }
+
+  it('updates the password when the current one matches', async () => {
+    const { prisma, update, passwordHash } =
+      await createPrismaMock(CURRENT_PASSWORD);
+    const service = new AuthService(prisma as never);
+
+    const result = await service.changePassword(7, {
+      currentPassword: CURRENT_PASSWORD,
+      newPassword: NEW_PASSWORD,
+    });
+
+    expect(result).toEqual({ message: 'Password updated' });
+    expect(update).toHaveBeenCalledTimes(1);
+
+    const [callArguments] = update.mock.calls as unknown as [
+      [{ data: { passwordHash: string } }],
+    ];
+    expect(callArguments[0].data.passwordHash).toMatch(
+      /^scrypt\$[0-9a-f]+\$[0-9a-f]+$/,
+    );
+    expect(callArguments[0].data.passwordHash).not.toBe(passwordHash);
+    expect(callArguments[0].data.passwordHash).not.toContain(NEW_PASSWORD);
+  });
+
+  it('rejects a wrong current password without updating', async () => {
+    const { prisma, update } = await createPrismaMock(CURRENT_PASSWORD);
+    const service = new AuthService(prisma as never);
+
+    await expect(
+      service.changePassword(7, {
+        currentPassword: 'wrong-password',
+        newPassword: NEW_PASSWORD,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a new password equal to the current one', async () => {
+    const { prisma, update } = await createPrismaMock(CURRENT_PASSWORD);
+    const service = new AuthService(prisma as never);
+
+    await expect(
+      service.changePassword(7, {
+        currentPassword: CURRENT_PASSWORD,
+        newPassword: CURRENT_PASSWORD,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('rejects inactive or missing users', async () => {
+    const service = new AuthService({
+      user: { findUnique: jest.fn().mockResolvedValue(null) },
+    } as never);
+
+    await expect(
+      service.changePassword(99, {
+        currentPassword: CURRENT_PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
