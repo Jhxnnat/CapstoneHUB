@@ -1,5 +1,3 @@
-import { getAuthToken } from "@/app/services/auth";
-
 const apiBaseUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
 
 export function getApiUrl(path: string) {
@@ -9,16 +7,4 @@ export function getApiUrl(path: string) {
   }
 
   return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
-}
-
-export function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken();
-
-  const headers: Record<string, string> = {};
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  return headers;
 }

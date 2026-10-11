@@ -6,10 +6,9 @@ import {
   MyProject,
   UpdateProjectPayload,
 } from "./schemas";
-import { getApiUrl, getAuthHeaders } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 import {
   apiErrorMessage,
-  captureRenewedToken,
   ensureOk,
   notifyUnauthorized,
 } from "@/lib/http";
@@ -42,11 +41,9 @@ export async function getProjects(): Promise<{
 }> {
   try {
     const response = await fetch(getApiUrl("/api/projects"), {
-      headers: getAuthHeaders(),
       cache: "no-store",
     });
 
-    captureRenewedToken(response);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -78,11 +75,9 @@ export async function getMyProjects(): Promise<{
 }> {
   try {
     const response = await fetch(getApiUrl("/api/projects/mine"), {
-      headers: getAuthHeaders(),
       cache: "no-store",
     });
 
-    captureRenewedToken(response);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -115,11 +110,9 @@ export async function getProjectById(id: string): Promise<{
 }> {
   try {
     const response = await fetch(getApiUrl(`/api/projects/${id}`), {
-      headers: getAuthHeaders(),
       cache: "no-store",
     });
 
-    captureRenewedToken(response);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -152,7 +145,6 @@ export async function updateProjectStatus(
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify({ status, description }),
   });
@@ -167,7 +159,6 @@ export async function advanceProjectPhase(
 ): Promise<ProjectDetails> {
   const response = await fetch(getApiUrl(`/api/projects/${id}/phase/advance`), {
     method: "POST",
-    headers: getAuthHeaders(),
   });
 
   await ensureOk(response, { action: "avanzar la fase del proyecto" });
@@ -182,7 +173,6 @@ export async function approveProjectPhase(
     getApiUrl(`/api/projects/${id}/phase/approvals`),
     {
       method: "POST",
-      headers: getAuthHeaders(),
     },
   );
 
@@ -198,7 +188,6 @@ export async function revokeProjectPhaseApproval(
     getApiUrl(`/api/projects/${id}/phase/approvals`),
     {
       method: "DELETE",
-      headers: getAuthHeaders(),
     },
   );
 
@@ -215,7 +204,6 @@ export async function updateProject(
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -235,7 +223,6 @@ export async function createProject(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -252,7 +239,6 @@ export async function getAssignableUsers(
     const response = await fetch(
       getApiUrl(`/api/projects/${projectId}/assignable-users`),
       {
-        headers: getAuthHeaders(),
         cache: "no-store",
       },
     );
@@ -292,7 +278,6 @@ export async function addProjectActorAssignment(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify(payload),
   });

@@ -1,5 +1,5 @@
-import { proxyJson } from "@/app/api/proxy";
+import { proxySessionRequest } from "../proxy";
 
 export async function POST(request: Request) {
-  return proxyJson(request, "/auth/login", "POST");
+  return proxySessionRequest(request, "/auth/login");
 }

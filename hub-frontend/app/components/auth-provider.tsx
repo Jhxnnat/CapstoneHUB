@@ -2,7 +2,6 @@
 
 import {
   createContext,
-  startTransition,
   useContext,
   useEffect,
   useMemo,
@@ -10,13 +9,12 @@ import {
 } from "react";
 import {
   AuthSession,
-  clearAuthSession,
-  loadAuthSession,
+  getCurrentUser,
   loginUser,
+  logoutUser,
   registerUser,
-  saveAuthSession,
 } from "../services/auth";
-import { setTokenRenewalHandler, setUnauthorizedHandler } from "@/lib/http";
+import { setUnauthorizedHandler } from "@/lib/http";
 
 type AuthContextValue = {
   session: AuthSession | null;
@@ -41,32 +39,37 @@ export default function AuthProvider({
   const [session, setSession] = useState<AuthSession | null>(null);
   const [ready, setReady] = useState(false);
 
+  // Hidrata la sesión desde la cookie httpOnly (vía BFF) al montar.
   useEffect(() => {
-    startTransition(() => {
-      setSession(loadAuthSession());
-      setReady(true);
-    });
+    let active = true;
 
-    function handleStorage(event: StorageEvent) {
-      if (event.key === "capstonehub.auth.session") {
-        setSession(loadAuthSession());
+    void (async () => {
+      try {
+        const user = await getCurrentUser();
+
+        if (active) {
+          setSession(user ? { user } : null);
+        }
+      } catch {
+        if (active) {
+          setSession(null);
+        }
+      } finally {
+        if (active) {
+          setReady(true);
+        }
       }
-    }
+    })();
 
-    window.addEventListener("storage", handleStorage);
-
-    return () => window.removeEventListener("storage", handleStorage);
+    return () => {
+      active = false;
+    };
   }, []);
 
-  // Ante un 401 con sesión guardada, la cierra y envía al login con la ruta
-  // actual para volver allí después de autenticarse.
+  // Ante un 401 con la cookie vencida, el BFF ya la limpió al reenviar la
+  // respuesta; aquí se limpia el estado y se envía al login.
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      if (!loadAuthSession()) {
-        return;
-      }
-
-      clearAuthSession();
       setSession(null);
 
       const { pathname, search } = window.location;
@@ -82,46 +85,30 @@ export default function AuthProvider({
     return () => setUnauthorizedHandler(null);
   }, []);
 
-  // El backend reemite el token cuando pasa el umbral de renovación; se guarda
-  // de forma transparente en la sesión.
-  useEffect(() => {
-    setTokenRenewalHandler((accessToken) => {
-      const current = loadAuthSession();
-
-      if (!current) {
-        return;
-      }
-
-      const nextSession = { ...current, accessToken };
-      saveAuthSession(nextSession);
-      setSession(nextSession);
-    });
-
-    return () => setTokenRenewalHandler(null);
-  }, []);
-
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
       isAuthenticated: Boolean(session),
       ready,
       login: async (payload) => {
-        const nextSession = await loginUser(payload);
-        saveAuthSession(nextSession);
-        setSession(nextSession);
+        const user = await loginUser(payload);
+        setSession({ user });
       },
       register: async (payload) => {
-        const nextSession = await registerUser(payload);
-        saveAuthSession(nextSession);
-        setSession(nextSession);
+        const user = await registerUser(payload);
+        setSession({ user });
       },
       logout: () => {
-        clearAuthSession();
         setSession(null);
 
-        if (window.location.pathname !== "/login") {
-          window.location.assign("/login");
+        if (window.location.pathname === "/login") {
+          void logoutUser().catch(() => undefined);
+          return;
         }
+
+        void logoutUser()
+          .catch(() => undefined)
+          .finally(() => window.location.assign("/login"));
       },
     }),
     [ready, session],

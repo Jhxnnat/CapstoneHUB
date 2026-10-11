@@ -35,6 +35,11 @@ export class AuthController {
     return this.authService.login(payload);
   }
 
+  @Get('me')
+  me(@CurrentUser() user: AuthenticatedUser) {
+    return user;
+  }
+
   @Get('users')
   @UseGuards(AdminGuard)
   users() {

@@ -1,7 +1,6 @@
 import { ProjectReportContentItem } from "./schemas";
-import { getAuthToken } from "./auth";
 import { REPORT_CONFLICT_MESSAGE } from "./reports";
-import { getApiUrl, getAuthHeaders } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 import { ensureOk } from "@/lib/http";
 
 export type CreateReportContentPayload =
@@ -31,7 +30,6 @@ export async function createReportContent(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
       },
       body: JSON.stringify(payload),
     },
@@ -65,7 +63,6 @@ export async function presignReportContentFile(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
       },
       body: JSON.stringify(metadata),
     },
@@ -136,7 +133,6 @@ export async function confirmReportContentFile(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
       },
       body: JSON.stringify(metadata),
     },
@@ -164,7 +160,6 @@ export async function updateReportContent(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
       },
       body: JSON.stringify(payload),
     },
@@ -189,7 +184,6 @@ export async function deleteReportContent(
     ),
     {
       method: "DELETE",
-      headers: getAuthHeaders(),
     },
   );
 
@@ -200,18 +194,15 @@ export async function deleteReportContent(
 }
 
 /**
- * URL del stream inline (imagen/video/archivo). El token viaja como query
- * porque `<img>` y `<video>` no pueden enviar la cabecera Authorization.
+ * URL del stream inline (imagen/video/archivo). La cookie httpOnly de sesión
+ * viaja sola en la petición same-origin, así que no hace falta token en query.
  */
 export function getReportContentStreamUrl(
   id: string,
   reportId: number,
   contentId: number,
 ): string {
-  const base = getApiUrl(
+  return getApiUrl(
     `/api/projects/${id}/reports/${reportId}/contents/${contentId}/stream`,
   );
-  const token = getAuthToken();
-
-  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }

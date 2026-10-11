@@ -84,15 +84,17 @@ de datos y mantener estable el contrato de la API aunque cambie el esquema.
 
 El login (`POST /auth/login`) verifica la contraseña con **scrypt** (sal
 aleatoria, clave de 64 bytes) y emite un **JWT HS256** firmado con
-`@nestjs/jwt`, de 24 horas por defecto. `AuthGuard` valida el header
+`@nestjs/jwt`, de 24 horas por defecto. Los usuarios sin contraseña local
+(cuentas de SSO) no pueden entrar por esta vía. `AuthGuard` valida el header
 `Authorization: Bearer <token>`, comprueba la firma y la expiración, y carga el
-usuario en `request.user`.
+usuario en `request.user`. `GET /auth/me` devuelve el usuario autenticado, para
+que el BFF hidrate la sesión.
 
 La sesión se renueva de forma **deslizante**: cuando al token ya le pasó la
 mitad de su vida, el guard firma uno nuevo y lo devuelve en el header
-`x-access-token`; el BFF lo reenvía al navegador y el frontend actualiza la
-sesión en `localStorage` sin obligar a re-loguear. Las ventanas se ajustan con
-`AUTH_TOKEN_TTL_SECONDS` y `AUTH_TOKEN_RENEW_AFTER_SECONDS`.
+`x-access-token`; el BFF lo guarda en la cookie httpOnly sin obligar a
+re-loguear. Las ventanas se ajustan con `AUTH_TOKEN_TTL_SECONDS` y
+`AUTH_TOKEN_RENEW_AFTER_SECONDS`.
 
 `PATCH /auth/me/password` permite cambiar la contraseña propia: valida la actual
 con scrypt, exige mínimo 8 caracteres y que la nueva sea distinta. Si la actual
@@ -370,6 +372,7 @@ Comandos: `npx prisma migrate dev`, `npm run seed` (y variantes como
 | `GET` | `/health` | Sonda pública: `200` si la base de datos responde, `503` si no. |
 | `POST` | `/auth/register` | Registro público de un proponente; crea la cuenta con rol `proposer` y devuelve usuario + token (público). |
 | `POST` | `/auth/login` | Iniciar sesión y recibir un token de acceso (público). |
+| `GET` | `/auth/me` | Usuario autenticado actual (lo usa el BFF para hidratar la sesión). |
 | `GET/POST` | `/auth/users` | Listar / crear usuarios (admin). |
 | `PATCH` | `/auth/users/:id/roles` | Reemplazar los roles de un usuario (admin). |
 | `PATCH` | `/auth/me/password` | Cambiar la contraseña propia (valida la actual; `400` si no coincide o si la nueva es igual). |

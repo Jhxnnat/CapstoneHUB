@@ -21,7 +21,10 @@ Ver también: [Arquitectura del backend](./backend_arch.md).
 ### User
 
 Cuenta y roles globales. `email` es único e `isActive` controla el acceso. Las
-contraseñas se guardan como hash `scrypt`, nunca en texto plano.
+contraseñas locales se guardan como hash `scrypt`, nunca en texto plano;
+`passwordHash` es opcional porque los usuarios de SSO no tienen contraseña
+local. `authProvider` (`local`/`microsoft`) indica el origen de la identidad y
+`entraObjectId` guarda el `oid` de Entra ID para enlazar la cuenta (único).
 
 ### UserRoleAssignment
 

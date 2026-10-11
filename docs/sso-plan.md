@@ -14,9 +14,25 @@ data linked to the corporate identity.
 
 ## Confirmed approach
 
-The corporate system exposes **OpenID Connect** (the authorize URL looks like
-`https://login.microsoftonline.com/<tenant>/oauth2/v2.0/authorize?...&scope=openid`,
-which is Entra ID's OIDC/OAuth2 endpoint — not SAML).
+The corporate system exposes **OpenID Connect** (not SAML). The observed
+authorize URL is the Entra ID **v1** endpoint:
+
+```
+https://login.microsoftonline.com/<tenant>/oauth2/authorize
+  ?response_type=code&client_id=...
+  &scope=openid profile email
+  &response_mode=form_post&state=...&nonce=...
+  &redirect_uri=https://savio.utb.edu.co/auth/oidc/
+  &resource=https://graph.microsoft.com
+```
+
+Notes:
+
+- `response_mode=form_post`: the IdP POSTs `code`/`state` as
+  `application/x-www-form-urlencoded`, so the callback must accept POST.
+- The `redirect_uri` above belongs to the university's own app (Savio); our app
+  registers its own redirect URI with corporate IT.
+- `resource=https://graph.microsoft.com` is v1-specific.
 
 Decisions as agreed:
 
@@ -28,6 +44,16 @@ Decisions as agreed:
 | Session transport | Migrate to **httpOnly cookies** via the Next.js BFF |
 | OIDC client | **NestJS backend** (confidential client) |
 | App registration | Created by **corporate IT** |
+
+## Preparation status
+
+The protocol-independent groundwork is implemented:
+
+- `User.passwordHash` is optional, with `authProvider` (`local`/`microsoft`)
+  and `entraObjectId` for the external identity.
+- `GET /auth/me` returns the authenticated user for the BFF.
+- The session lives in an **httpOnly cookie** managed by the Next BFF (login,
+  register, logout and sliding renewal); the browser no longer stores the token.
 
 ## Flow
 

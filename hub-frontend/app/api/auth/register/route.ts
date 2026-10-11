@@ -1,5 +1,5 @@
-import { proxyRequest } from "../proxy";
+import { proxySessionRequest } from "../proxy";
 
 export async function POST(request: Request) {
-  return proxyRequest(request, "/auth/register", "POST");
+  return proxySessionRequest(request, "/auth/register");
 }

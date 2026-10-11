@@ -115,7 +115,7 @@ export class AuthService implements OnModuleInit {
       where: { email },
     });
 
-    if (!userRecord || !userRecord.isActive) {
+    if (!userRecord || !userRecord.isActive || !userRecord.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -297,6 +297,10 @@ export class AuthService implements OnModuleInit {
 
     if (!user?.isActive) {
       throw new UnauthorizedException('User is inactive or does not exist');
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException('Current password is incorrect');
     }
 
     const currentMatches = await this.verifyPassword(

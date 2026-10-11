@@ -1,5 +1,5 @@
 import { ProjectReportContentKind, ProjectReportItem } from "./schemas";
-import { getApiUrl, getAuthHeaders } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 import { ensureOk } from "@/lib/http";
 
 export const REPORT_CONFLICT_MESSAGE =
@@ -20,7 +20,6 @@ export async function getProjectReports(
   id: string,
 ): Promise<ProjectReportItem[]> {
   const response = await fetch(getApiUrl(`/api/projects/${id}/reports`), {
-    headers: getAuthHeaders(),
     cache: "no-store",
   });
 
@@ -40,7 +39,6 @@ export async function createProjectReport(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -64,7 +62,6 @@ export async function updateProjectReport(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
       },
       body: JSON.stringify(payload),
     },
@@ -86,7 +83,6 @@ export async function deleteProjectReport(
     getApiUrl(`/api/projects/${id}/reports/${reportId}`),
     {
       method: "DELETE",
-      headers: getAuthHeaders(),
     },
   );
 
@@ -105,7 +101,6 @@ export async function submitProjectReport(
     {
       method: "POST",
       headers: {
-        ...getAuthHeaders(),
       },
     },
   );
@@ -130,7 +125,6 @@ export async function reviewProjectReport(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
       },
       body: JSON.stringify({ decision, comment }),
     },
