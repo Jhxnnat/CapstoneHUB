@@ -6,6 +6,12 @@ import { App } from 'supertest/types';
 import { AppModule } from '../../src/app.module';
 import { PrismaService } from '../../src/prisma.service';
 
+// `S3StorageService` exige estas variables al arrancar, aunque los e2e del
+// primer corte no suben archivos. Se fijan valores inofensivos si faltan.
+process.env.S3_BUCKET ??= 'test-bucket';
+process.env.S3_ACCESS_KEY ??= 'test';
+process.env.S3_SECRET_KEY ??= 'test';
+
 /**
  * Levanta la aplicación Nest completa (módulos reales + base de datos) para los
  * tests e2e. Se usa una vez por suite y se cierra en `afterAll`.
