@@ -7,7 +7,7 @@ import {
   UpdateProjectPayload,
 } from "./schemas";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
-import { apiErrorMessage, ensureOk } from "@/lib/http";
+import { apiErrorMessage, ensureOk, notifyUnauthorized } from "@/lib/http";
 
 const PROJECT_EDIT_CONFLICT_MESSAGE =
   "El proyecto está finalizado o rechazado y ya no se puede editar.";
@@ -42,6 +42,10 @@ export async function getProjects(): Promise<{
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        notifyUnauthorized();
+      }
+
       return {
         projects: [],
         status: response.status,
@@ -72,6 +76,10 @@ export async function getMyProjects(): Promise<{
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        notifyUnauthorized();
+      }
+
       return {
         projects: [],
         error: await apiErrorMessage(response),
@@ -103,6 +111,10 @@ export async function getProjectById(id: string): Promise<{
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        notifyUnauthorized();
+      }
+
       return {
         status: response.status,
         error: await apiErrorMessage(response),

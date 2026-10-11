@@ -1,4 +1,4 @@
-import { apiErrorMessage } from "@/lib/http";
+import { apiErrorMessage, ensureOk } from "@/lib/http";
 
 export type AuthUser = {
   id: number;
@@ -110,9 +110,7 @@ export async function getUsers(): Promise<AuthUser[]> {
     cache: "no-store",
   });
 
-  if (!response.ok) {
-    throw new Error(await apiErrorMessage(response));
-  }
+  await ensureOk(response, { action: "consultar los usuarios" });
 
   return (await response.json()) as AuthUser[];
 }
@@ -134,9 +132,7 @@ export async function createUser(payload: {
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(await apiErrorMessage(response));
-  }
+  await ensureOk(response, { action: "crear el usuario" });
 
   return (await response.json()) as AuthUser;
 }
@@ -156,9 +152,7 @@ export async function updateUserRoles(
     body: JSON.stringify({ roles }),
   });
 
-  if (!response.ok) {
-    throw new Error(await apiErrorMessage(response));
-  }
+  await ensureOk(response, { action: "actualizar los roles del usuario" });
 
   return (await response.json()) as AuthUser;
 }

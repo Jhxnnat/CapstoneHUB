@@ -10,6 +10,18 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { isValidEmail } from "@/lib/validation";
+
+/** Ruta interna a la que volver tras el login (`?next=`), si es segura. */
+function getPostLoginPath(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return "/projects";
+  }
+
+  return next;
+}
 
 export default function LoginForm() {
   const router = useRouter();
@@ -21,12 +33,28 @@ export default function LoginForm() {
 
   async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsSubmitting(true);
     setErrorMessage(null);
 
+    if (!email.trim()) {
+      setErrorMessage("Ingresa tu correo electrónico.");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setErrorMessage("Ingresa un correo electrónico válido.");
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage("Ingresa tu contraseña.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
     try {
-      await login({ email, password });
-      router.push("/projects");
+      await login({ email: email.trim(), password });
+      router.push(getPostLoginPath());
       router.refresh();
     } catch (error) {
       setErrorMessage(
@@ -38,7 +66,7 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} noValidate>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>

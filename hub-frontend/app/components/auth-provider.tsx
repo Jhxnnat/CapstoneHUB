@@ -16,6 +16,7 @@ import {
   registerUser,
   saveAuthSession,
 } from "../services/auth";
+import { setUnauthorizedHandler } from "@/lib/http";
 
 type AuthContextValue = {
   session: AuthSession | null;
@@ -57,6 +58,30 @@ export default function AuthProvider({
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
+  // Ante un 401 con sesión guardada, la cierra y envía al login con la ruta
+  // actual para volver allí después de autenticarse.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (!loadAuthSession()) {
+        return;
+      }
+
+      clearAuthSession();
+      setSession(null);
+
+      const { pathname, search } = window.location;
+
+      if (pathname === "/login") {
+        return;
+      }
+
+      const next = encodeURIComponent(`${pathname}${search}`);
+      window.location.assign(`/login?next=${next}`);
+    });
+
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -75,6 +100,10 @@ export default function AuthProvider({
       logout: () => {
         clearAuthSession();
         setSession(null);
+
+        if (window.location.pathname !== "/login") {
+          window.location.assign("/login");
+        }
       },
     }),
     [ready, session],

@@ -177,7 +177,7 @@ function ReportDialogForm({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
           {children}
 
           {errorMessage ? <FormError message={errorMessage} /> : null}

@@ -456,7 +456,7 @@ export default function SubmitProjectForm() {
         </DialogContent>
       </Dialog>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>
           <div className="mb-6">
             <div className="grid gap-2 md:grid-cols-3">

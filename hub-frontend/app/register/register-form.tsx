@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { isValidEmail } from "@/lib/validation";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -47,8 +48,33 @@ export default function RegisterForm() {
     event.preventDefault();
     setErrorMessage(null);
 
+    if (!fullName.trim()) {
+      setErrorMessage("Ingresa tu nombre completo.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setErrorMessage("Ingresa tu correo electrónico.");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setErrorMessage("Ingresa un correo electrónico válido.");
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage("Ingresa una contraseña.");
+      return;
+    }
+
     if (password.length < 8) {
       setErrorMessage("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    if (!confirmPassword) {
+      setErrorMessage("Confirma tu contraseña.");
       return;
     }
 
@@ -60,7 +86,11 @@ export default function RegisterForm() {
     setIsSubmitting(true);
 
     try {
-      await register({ fullName: fullName.trim(), email, password });
+      await register({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+      });
       router.push("/submit");
       router.refresh();
     } catch (error) {
@@ -79,7 +109,7 @@ export default function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} noValidate>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="fullName">Nombre completo</FieldLabel>

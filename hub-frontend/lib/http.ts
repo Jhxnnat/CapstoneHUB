@@ -73,10 +73,37 @@ export async function apiRequestError(
   return new Error(await apiErrorMessage(response));
 }
 
+/**
+ * Manejador global para sesiones rechazadas. Lo registra `AuthProvider` para
+ * limpiar la sesión y redirigir al login; así ninguna pantalla maneja el 401
+ * por su cuenta.
+ */
+type UnauthorizedHandler = () => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function setUnauthorizedHandler(
+  handler: UnauthorizedHandler | null,
+): void {
+  unauthorizedHandler = handler;
+}
+
+/**
+ * Avisa que la API rechazó la sesión (401). Lo llaman `ensureOk` y los
+ * fetchers que revisan `response.ok` a mano.
+ */
+export function notifyUnauthorized(): void {
+  unauthorizedHandler?.();
+}
+
 export async function ensureOk(
   response: Response,
   options: ApiErrorOptions,
 ): Promise<void> {
+  if (response.status === 401) {
+    notifyUnauthorized();
+  }
+
   if (!response.ok) {
     throw await apiRequestError(response, options);
   }

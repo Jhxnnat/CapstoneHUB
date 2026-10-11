@@ -58,7 +58,7 @@ function normalizeOptionalText(value: string | null): string | null {
 
 @Controller('projects')
 export class ProjectsController {
-  constructor(private projectService: ProjectsService) {}
+  constructor(private readonly projectService: ProjectsService) {}
 
   @Get('mine')
   async getMyProjects(

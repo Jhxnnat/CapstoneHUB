@@ -257,7 +257,7 @@ export default function ProjectGeneralEditForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <FieldGroup>
           <FieldSet>
             <FieldLegend>Proyecto</FieldLegend>

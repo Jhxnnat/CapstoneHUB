@@ -425,7 +425,7 @@ export function ReportContentComposer({
   return (
     <>
       <Separator />
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
         {reportType === "text" ? (
           <Textarea
             value={textValue}
