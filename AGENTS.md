@@ -65,6 +65,19 @@ Seed sample data from `hub-backend` (Postgres must be up and migrated):
 `npm run seed`, or per domain with `npm run seed:users`, `seed:projects`,
 `seed:reset`, etc. See [BUILD.md](BUILD.md) for fixtures and credentials.
 
+## Tests
+
+| Command | Where | What |
+| --- | --- | --- |
+| `npm run lint` | `hub-backend` | ESLint sobre `src` y `test`. |
+| `npm test` | `hub-backend` | Jest unitario (specs junto al código). |
+| `npm run test:e2e` | `hub-backend` | Supertest (auth + proyectos); requiere BD `capstonehub_test`. |
+| `npm run lint` / `npm run build` | `hub-frontend` | ESLint y build de Next. |
+| `npm run test:e2e` | `hub-frontend` | Playwright (escritorio + móvil); requiere backend compilado y `npx playwright install chromium`. |
+
+Setup y comandos exactos (BD de test, `DATABASE_URL`, Playwright) en
+[BUILD.md](BUILD.md#tests).
+
 ## Commit messages — Conventional Commits (required)
 
 Every commit must follow [Conventional Commits](https://www.conventionalcommits.org):
@@ -125,4 +138,6 @@ docs: document the UTB design system
   `hub-frontend/AGENTS.md` plus the design system doc.
 - Before finishing, run the checks for the area you touched
   (`npm run lint`, `npm test` in `hub-backend`; `npm run lint` in
-  `hub-frontend`).
+  `hub-frontend`). For end-to-end coverage add `npm run test:e2e` in
+  `hub-backend` (supertest) and `hub-frontend` (Playwright) — see the Tests
+  section above and [BUILD.md](BUILD.md#tests).

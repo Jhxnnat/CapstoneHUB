@@ -101,6 +101,61 @@ si se corre varias veces no duplica registros, solo
 actualiza lo que ya existe. `npm run seed:reset` elimina únicamente los datos
 sembrados (por nombre de proyecto y email del fixture) antes de recrearlos.
 
+## Tests
+
+### Backend (unit + lint)
+
+```bash
+cd hub-backend
+npm run lint
+npm test          # Jest; los tests unitarios viven junto al código (*.spec.ts)
+```
+
+### Backend e2e (supertest)
+
+Usa una base de datos de test **dedicada** (`capstonehub_test`), no la de
+desarrollo. Prepararla una vez:
+
+```bash
+docker exec postgres psql -U postgres -c "CREATE DATABASE capstonehub_test;"
+```
+
+Migrar y ejecutar. `AUTH_SECRET` se toma de `hub-backend/.env` (vía
+`dotenv/config`); `test:e2e` ya incluye
+`NODE_OPTIONS=--experimental-vm-modules` por el `import()` dinámico de Prisma 7:
+
+```bash
+cd hub-backend
+DATABASE_URL="postgresql://<usuario>:<contraseña>@localhost:5432/capstonehub_test" \
+  npx prisma migrate deploy
+DATABASE_URL="postgresql://<usuario>:<contraseña>@localhost:5432/capstonehub_test" \
+  npm run test:e2e
+```
+
+Los specs están en `test/` (`auth.e2e-spec.ts`, `projects.e2e-spec.ts`) y crean
+sus propios datos con correos únicos, así que no dependen de seeds.
+
+### Frontend e2e (Playwright)
+
+Requiere el backend **compilado** y el navegador de Playwright. Los specs corren
+en Chromium de escritorio y en un viewport móvil; `playwright.config.ts` levanta
+solo el backend y `next start` (`webServer`):
+
+```bash
+cd hub-backend && npm run build
+cd ../hub-frontend
+npx playwright install chromium   # solo la primera vez
+npm run build
+DATABASE_URL="postgresql://<usuario>:<contraseña>@localhost:5432/capstonehub_test" \
+  npm run test:e2e
+```
+
+Los specs están en `e2e/` (`auth.spec.ts`, `project-detail.spec.ts`).
+
+En CI, el job `e2e` de `.github/workflows/ci.yml` levanta un Postgres efímero
+(`capstonehub_test`), aplica las migraciones, compila backend y frontend y corre
+las dos suites (supertest y Playwright).
+
 ## Fixtures
 
 - `prisma/fixtures/users.json`: usuarios con sus roles. El campo
