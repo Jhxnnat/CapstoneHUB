@@ -7,7 +7,12 @@ import {
   UpdateProjectPayload,
 } from "./schemas";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
-import { apiErrorMessage, ensureOk, notifyUnauthorized } from "@/lib/http";
+import {
+  apiErrorMessage,
+  captureRenewedToken,
+  ensureOk,
+  notifyUnauthorized,
+} from "@/lib/http";
 
 const PROJECT_EDIT_CONFLICT_MESSAGE =
   "El proyecto está finalizado o rechazado y ya no se puede editar.";
@@ -40,6 +45,8 @@ export async function getProjects(): Promise<{
       headers: getAuthHeaders(),
       cache: "no-store",
     });
+
+    captureRenewedToken(response);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -75,6 +82,8 @@ export async function getMyProjects(): Promise<{
       cache: "no-store",
     });
 
+    captureRenewedToken(response);
+
     if (!response.ok) {
       if (response.status === 401) {
         notifyUnauthorized();
@@ -109,6 +118,8 @@ export async function getProjectById(id: string): Promise<{
       headers: getAuthHeaders(),
       cache: "no-store",
     });
+
+    captureRenewedToken(response);
 
     if (!response.ok) {
       if (response.status === 401) {

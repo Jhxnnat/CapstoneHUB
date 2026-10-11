@@ -16,7 +16,7 @@ Ver también: [Esquema de base de datos](./database_arch.md),
 | Lenguaje | TypeScript sobre Node.js 26 |
 | Base de datos | PostgreSQL 15 vía Prisma 7 (adaptador `pg`) |
 | Almacenamiento | MinIO localmente, compatible con S3 en producción |
-| Autenticación | Tokens HMAC-SHA256 propios + hash de contraseñas con scrypt |
+| Autenticación | JWT HS256 (`@nestjs/jwt`) + hash de contraseñas con scrypt |
 | Documentación | Swagger / OpenAPI en `/api` |
 | Pruebas | Tests unitarios con Jest y e2e con Supertest |
 
@@ -83,10 +83,16 @@ de datos y mantener estable el contrato de la API aunque cambie el esquema.
 ## Autenticación y autorización
 
 El login (`POST /auth/login`) verifica la contraseña con **scrypt** (sal
-aleatoria, clave de 64 bytes) y emite un token **HMAC-SHA256** de 24 horas (sin
-librerías externas). `AuthGuard` valida el header
-`Authorization: Bearer <token>`, comprueba la expiración y carga el usuario en
-`request.user`.
+aleatoria, clave de 64 bytes) y emite un **JWT HS256** firmado con
+`@nestjs/jwt`, de 24 horas por defecto. `AuthGuard` valida el header
+`Authorization: Bearer <token>`, comprueba la firma y la expiración, y carga el
+usuario en `request.user`.
+
+La sesión se renueva de forma **deslizante**: cuando al token ya le pasó la
+mitad de su vida, el guard firma uno nuevo y lo devuelve en el header
+`x-access-token`; el BFF lo reenvía al navegador y el frontend actualiza la
+sesión en `localStorage` sin obligar a re-loguear. Las ventanas se ajustan con
+`AUTH_TOKEN_TTL_SECONDS` y `AUTH_TOKEN_RENEW_AFTER_SECONDS`.
 
 `PATCH /auth/me/password` permite cambiar la contraseña propia: valida la actual
 con scrypt, exige mínimo 8 caracteres y que la nueva sea distinta. Si la actual
@@ -322,6 +328,8 @@ rutas que la necesitan.
 | --- | --- |
 | `DATABASE_URL` | Cadena de conexión a PostgreSQL. |
 | `AUTH_SECRET` | Clave de firma HMAC (mínimo 32 caracteres). |
+| `AUTH_TOKEN_TTL_SECONDS` | Vida del token de acceso (86400 s por defecto). |
+| `AUTH_TOKEN_RENEW_AFTER_SECONDS` | Antigüedad para reemitir el token en una petición válida (mitad del TTL por defecto). |
 | `INITIAL_ADMIN_*` | Email, contraseña y nombre del admin inicial. |
 | `MAX_FILE_SIZE_BYTES` | Límite de tamaño de anexos (por defecto 10 MB). |
 | `MAX_REPORT_FILE_SIZE_BYTES` | Límite de tamaño de archivos de una entrega (100 MB por defecto). |

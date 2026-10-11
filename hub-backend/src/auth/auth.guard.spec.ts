@@ -24,15 +24,49 @@ describe('AuthGuard', () => {
     };
     const authService = {
       verifyAccessToken: jest.fn().mockResolvedValue(authenticatedUser),
+      renewAccessTokenIfStale: jest.fn().mockReturnValue(null),
     } as never;
     const guard = new AuthGuard(authService);
     const request = { headers: { authorization: 'Bearer token' } };
+    const response = { setHeader: jest.fn() };
     const context = {
-      switchToHttp: () => ({ getRequest: () => request }),
+      switchToHttp: () => ({
+        getRequest: () => request,
+        getResponse: () => response,
+      }),
     } as never;
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request).toHaveProperty('user', authenticatedUser);
+    expect(response.setHeader).not.toHaveBeenCalled();
+  });
+
+  it('returns a renewed token header when the token is stale', async () => {
+    const authenticatedUser = {
+      id: 1,
+      fullName: 'Admin',
+      email: 'admin@example.com',
+      roles: ['admin'],
+    };
+    const authService = {
+      verifyAccessToken: jest.fn().mockResolvedValue(authenticatedUser),
+      renewAccessTokenIfStale: jest.fn().mockReturnValue('renewed-token'),
+    } as never;
+    const guard = new AuthGuard(authService);
+    const request = { headers: { authorization: 'Bearer token' } };
+    const response = { setHeader: jest.fn() };
+    const context = {
+      switchToHttp: () => ({
+        getRequest: () => request,
+        getResponse: () => response,
+      }),
+    } as never;
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(response.setHeader).toHaveBeenCalledWith(
+      'x-access-token',
+      'renewed-token',
+    );
   });
 
   it('allows anonymous access on public routes', async () => {

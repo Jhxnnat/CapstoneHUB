@@ -95,6 +95,11 @@ servidor. El registro (`POST /auth/register` vía el BFF) crea al usuario con ro
 `proposer`, lo deja autenticado igual que el login y redirige a `/submit`. Si un
 usuario con sesión abre `/register`, se le redirige a `/profile`.
 
+La sesión se renueva sola: el backend puede devolver un token nuevo en el header
+`x-access-token`, el BFF lo reenvía y `lib/http.ts` avisa a `AuthProvider` para
+guardarlo en `localStorage` (`captureRenewedToken`). Un `401` real limpia la
+sesión y redirige a `/login?next=…`; `logout` también navega al login.
+
 ## Server vs Client Components
 
 - Las páginas cargan datos con Server Components (`getProjects`,

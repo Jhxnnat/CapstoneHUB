@@ -16,7 +16,7 @@ import {
   registerUser,
   saveAuthSession,
 } from "../services/auth";
-import { setUnauthorizedHandler } from "@/lib/http";
+import { setTokenRenewalHandler, setUnauthorizedHandler } from "@/lib/http";
 
 type AuthContextValue = {
   session: AuthSession | null;
@@ -80,6 +80,24 @@ export default function AuthProvider({
     });
 
     return () => setUnauthorizedHandler(null);
+  }, []);
+
+  // El backend reemite el token cuando pasa el umbral de renovación; se guarda
+  // de forma transparente en la sesión.
+  useEffect(() => {
+    setTokenRenewalHandler((accessToken) => {
+      const current = loadAuthSession();
+
+      if (!current) {
+        return;
+      }
+
+      const nextSession = { ...current, accessToken };
+      saveAuthSession(nextSession);
+      setSession(nextSession);
+    });
+
+    return () => setTokenRenewalHandler(null);
   }, []);
 
   const value = useMemo<AuthContextValue>(
