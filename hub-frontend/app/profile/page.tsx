@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../components/auth-provider";
 import ModuleHeader from "../components/module-header";
 import AssignedProjects from "./assigned-projects";
+import ChangePasswordForm from "./change-password-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatRole, getInitials } from "../services/utils";
@@ -82,6 +83,8 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        <ChangePasswordForm />
 
         <AssignedProjects />
       </section>

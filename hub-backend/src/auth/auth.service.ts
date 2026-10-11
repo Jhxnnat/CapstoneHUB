@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma.service';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthenticatedUser } from './auth.types';
 import {
   createHmac,
@@ -275,6 +276,53 @@ export class AuthService implements OnModuleInit {
     ]);
 
     return (await this.users()).find((summary) => summary.id === userId)!;
+  }
+
+  /**
+   * Cambia la contraseña del usuario autenticado. La contraseña actual se
+   * valida con scrypt y la nueva debe ser distinta. Responde 400 (nunca 401)
+   * cuando la actual no coincide, para no disparar el cierre de sesión global
+   * del frontend.
+   */
+  async changePassword(
+    userId: number,
+    payload: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true, passwordHash: true },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User is inactive or does not exist');
+    }
+
+    const currentMatches = await this.verifyPassword(
+      payload.currentPassword,
+      user.passwordHash,
+    );
+
+    if (!currentMatches) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const repeatsCurrent = await this.verifyPassword(
+      payload.newPassword,
+      user.passwordHash,
+    );
+
+    if (repeatsCurrent) {
+      throw new BadRequestException(
+        'The new password must be different from the current one',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await this.hashPassword(payload.newPassword) },
+    });
+
+    return { message: 'Password updated' };
   }
 
   async verifyAccessToken(token: string): Promise<AuthenticatedUser> {

@@ -11,6 +11,9 @@ import {
 import { AuthService } from './auth.service';
 import { AdminGuard } from './admin.guard';
 import { Public } from './public.decorator';
+import { CurrentUser } from './current-user.decorator';
+import type { AuthenticatedUser } from './auth.types';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RegisterUserDto } from './dto/register-user.dto';
@@ -51,5 +54,13 @@ export class AuthController {
     @Body() payload: UpdateUserRolesDto,
   ) {
     return this.authService.replaceUserRoles(id, payload.roles);
+  }
+
+  @Patch('me/password')
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() payload: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(user.id, payload);
   }
 }
