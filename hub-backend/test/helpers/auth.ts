@@ -18,6 +18,9 @@ export type AuthSession = {
 /** Contraseña de fixture para los tests e2e (no es un secreto real). */
 export const TEST_PASSWORD = 'password123'; // NOSONAR
 
+/** Contraseña nueva usada al probar el cambio de contraseña. */
+export const TEST_NEW_PASSWORD = 'nueva-password-123'; // NOSONAR
+
 /** Correo único por ejecución, para no colisionar entre corridas. */
 export function uniqueEmail(prefix = 'e2e'): string {
   return `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}@example.com`;

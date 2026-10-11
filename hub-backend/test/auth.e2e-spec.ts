@@ -6,6 +6,7 @@ import {
   bearer,
   loginUser,
   registerUser,
+  TEST_NEW_PASSWORD,
   TEST_PASSWORD,
   uniqueEmail,
 } from './helpers/auth';
@@ -46,7 +47,7 @@ describe('Auth (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email, password: 'contraseña-incorrecta' })
+      .send({ email, password: 'incorrecta' })
       .expect(401);
   });
 
@@ -59,7 +60,7 @@ describe('Auth (e2e)', () => {
       .set(bearer(accessToken))
       .send({
         currentPassword: 'incorrecta',
-        newPassword: 'nueva-password-123',
+        newPassword: TEST_NEW_PASSWORD,
       })
       .expect(400);
 
@@ -68,10 +69,10 @@ describe('Auth (e2e)', () => {
       .set(bearer(accessToken))
       .send({
         currentPassword: TEST_PASSWORD,
-        newPassword: 'nueva-password-123',
+        newPassword: TEST_NEW_PASSWORD,
       })
       .expect(200);
 
-    await loginUser(app, email, 'nueva-password-123');
+    await loginUser(app, email, TEST_NEW_PASSWORD);
   });
 });
