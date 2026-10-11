@@ -333,6 +333,26 @@ describe('AuthService password change', () => {
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
+
+  it('rejects users without a local password', async () => {
+    const update = jest.fn();
+    const service = createService({
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ id: 7, isActive: true, passwordHash: null }),
+        update,
+      },
+    });
+
+    await expect(
+      service.changePassword(7, {
+        currentPassword: CURRENT_PASSWORD,
+        newPassword: NEW_PASSWORD,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(update).not.toHaveBeenCalled();
+  });
 });
 
 describe('AuthService tokens', () => {
@@ -425,5 +445,24 @@ describe('AuthService tokens', () => {
     expect(renewed).not.toBeNull();
     expect(renewed).not.toBe(staleToken);
     expect(jwt.decode<{ sub?: number }>(renewed!)?.sub).toBe(7);
+  });
+});
+
+describe('AuthService login', () => {
+  it('rejects users without a local password (SSO accounts)', async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 7,
+          isActive: true,
+          passwordHash: null,
+        }),
+      },
+    };
+    const service = createService(prisma);
+
+    await expect(
+      service.login({ email: 'sso@example.com', password: 'whatever' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
