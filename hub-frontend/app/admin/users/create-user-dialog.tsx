@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { isValidEmail } from "@/lib/validation";
 
 const roles = [
   { value: "student", label: "Estudiante" },
@@ -65,6 +66,11 @@ export default function CreateUserDialog({
 
     if (!fullName.trim() || !email.trim() || !password) {
       setError("Todos los campos son obligatorios.");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Ingresa un correo electrónico válido.");
       return;
     }
 
@@ -116,7 +122,7 @@ export default function CreateUserDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="fullName">Nombre completo</FieldLabel>
