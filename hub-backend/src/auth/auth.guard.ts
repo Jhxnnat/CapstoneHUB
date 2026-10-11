@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { AuthenticatedRequest } from './auth.types';
 import { IS_PUBLIC_KEY } from './public.decorator';
@@ -43,6 +44,21 @@ export class AuthGuard implements CanActivate {
     // cliente detecte una sesión expirada en lugar de degradar en silencio a
     // anónimo.
     request.user = await this.authService.verifyAccessToken(token);
+
+    // Renovación deslizante: si al token ya le pasó el umbral, se emite uno
+    // nuevo y viaja en un header para que el BFF lo guarde en el navegador.
+    const renewedToken = this.authService.renewAccessTokenIfStale(
+      token,
+      request.user,
+    );
+
+    if (renewedToken) {
+      context
+        .switchToHttp()
+        .getResponse<Response>()
+        .setHeader('x-access-token', renewedToken);
+    }
+
     return true;
   }
 }

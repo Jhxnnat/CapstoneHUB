@@ -12,16 +12,12 @@ import { RegisterUserDto } from './dto/register-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthenticatedUser } from './auth.types';
-import {
-  createHmac,
-  randomBytes,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-} from 'crypto';
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
+import { JwtService } from '@nestjs/jwt';
+import { AUTH_TOKEN_RENEW_AFTER_SECONDS } from './auth.token';
 
 const scrypt = promisify(scryptCallback);
-const AUTH_TOKEN_TTL_SECONDS = 60 * 60 * 24;
 
 const authUserSelect = {
   id: true,
@@ -54,9 +50,11 @@ type UserSummary = {
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
-  private readonly tokenSecret = this.getTokenSecret();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     let userCount: number;
@@ -326,40 +324,23 @@ export class AuthService implements OnModuleInit {
   }
 
   async verifyAccessToken(token: string): Promise<AuthenticatedUser> {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new UnauthorizedException('Invalid access token');
-    }
+    let payload: { sub?: number };
 
-    const [encodedHeader, encodedPayload, encodedSignature] = parts;
-    const expectedSignature = createHmac('sha256', this.tokenSecret)
-      .update(`${encodedHeader}.${encodedPayload}`)
-      .digest('base64url');
-    const actual = Buffer.from(encodedSignature);
-    const expected = Buffer.from(expectedSignature);
-
-    if (
-      actual.length !== expected.length ||
-      !timingSafeEqual(actual, expected)
-    ) {
-      throw new UnauthorizedException('Invalid access token');
-    }
-
-    let payload: { sub?: number; exp?: number };
     try {
-      payload = JSON.parse(
-        Buffer.from(encodedPayload, 'base64url').toString('utf8'),
-      ) as { sub?: number; exp?: number };
-    } catch {
-      throw new UnauthorizedException('Invalid access token');
+      payload = await this.jwt.verifyAsync<{ sub?: number }>(token, {
+        algorithms: ['HS256'],
+      });
+    } catch (error) {
+      const expired =
+        error instanceof Error && error.name === 'TokenExpiredError';
+
+      throw new UnauthorizedException(
+        expired ? 'Access token expired' : 'Invalid access token',
+      );
     }
 
-    if (
-      !payload.sub ||
-      !payload.exp ||
-      payload.exp <= Math.floor(Date.now() / 1000)
-    ) {
-      throw new UnauthorizedException('Access token expired');
+    if (!payload.sub) {
+      throw new UnauthorizedException('Invalid access token');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -374,6 +355,30 @@ export class AuthService implements OnModuleInit {
     return this.toAuthenticatedUser(user);
   }
 
+  /**
+   * Reemite el token cuando al actual ya le pasó el umbral de renovación, para
+   * que las sesiones activas no se corten de golpe. Devuelve `null` si el token
+   * todavía es reciente. El guard lo llama tras verificar la firma.
+   */
+  renewAccessTokenIfStale(
+    token: string,
+    user: Pick<AuthenticatedUser, 'id' | 'email' | 'fullName'>,
+  ): string | null {
+    const payload = this.jwt.decode<{ iat?: number } | null>(token);
+
+    if (!payload?.iat) {
+      return null;
+    }
+
+    const ageSeconds = Math.floor(Date.now() / 1000) - payload.iat;
+
+    if (ageSeconds < AUTH_TOKEN_RENEW_AFTER_SECONDS) {
+      return null;
+    }
+
+    return this.createAccessToken(user);
+  }
+
   private toAuthenticatedUser(user: AuthUser): AuthenticatedUser {
     return {
       id: user.id,
@@ -381,17 +386,6 @@ export class AuthService implements OnModuleInit {
       email: user.email,
       roles: user.roleAssignments.map(({ role }) => role),
     };
-  }
-
-  private getTokenSecret(): string {
-    const secret = process.env.AUTH_SECRET?.trim();
-    if (!secret || secret.length < 32) {
-      throw new Error(
-        'AUTH_SECRET must be configured with at least 32 characters',
-      );
-    }
-
-    return secret;
   }
 
   private normalizeEmail(email: string): string {
@@ -428,28 +422,10 @@ export class AuthService implements OnModuleInit {
   private createAccessToken(
     user: Pick<AuthenticatedUser, 'id' | 'email' | 'fullName'>,
   ): string {
-    const header = this.base64UrlEncode(
-      JSON.stringify({ alg: 'HS256', typ: 'JWT' }),
-    );
-    const issuedAt = Math.floor(Date.now() / 1000);
-    const payload = this.base64UrlEncode(
-      JSON.stringify({
-        sub: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        iat: issuedAt,
-        exp: issuedAt + AUTH_TOKEN_TTL_SECONDS,
-      }),
-    );
-
-    const signature = createHmac('sha256', this.tokenSecret)
-      .update(`${header}.${payload}`)
-      .digest('base64url');
-
-    return `${header}.${payload}.${signature}`;
-  }
-
-  private base64UrlEncode(value: string): string {
-    return Buffer.from(value).toString('base64url');
+    return this.jwt.sign({
+      sub: user.id,
+      email: user.email,
+      fullName: user.fullName,
+    });
   }
 }
