@@ -1,12 +1,11 @@
 import { ProjectAttachmentItem } from "./schemas";
-import { getApiUrl, getAuthHeaders } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 import { ensureOk } from "@/lib/http";
 
 export async function getProjectAttachments(
   id: string,
 ): Promise<ProjectAttachmentItem[]> {
   const response = await fetch(getApiUrl(`/api/projects/${id}/attachments`), {
-    headers: getAuthHeaders(),
     cache: "no-store",
   });
 
@@ -29,7 +28,6 @@ export async function uploadProjectAttachment(
 
   const response = await fetch(getApiUrl(`/api/projects/${id}/attachments`), {
     method: "POST",
-    headers: getAuthHeaders(),
     body: formData,
   });
 
@@ -46,7 +44,6 @@ export async function deleteProjectAttachment(
     getApiUrl(`/api/projects/${id}/attachments/${attachmentId}`),
     {
       method: "DELETE",
-      headers: getAuthHeaders(),
     },
   );
 
@@ -61,7 +58,6 @@ export async function downloadProjectAttachment(
   const response = await fetch(
     getApiUrl(`/api/projects/${id}/attachments/${attachmentId}/download`),
     {
-      headers: getAuthHeaders(),
       cache: "no-store",
     },
   );

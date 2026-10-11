@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { backendUnavailableResponse } from "@/app/api/proxy";
+import { getSessionToken } from "@/app/api/auth/session";
 
 const backendUrl = process.env.BACKEND_URL?.replace(/\/$/, "");
 
@@ -16,7 +17,7 @@ export async function GET(
     );
   }
 
-  const authorization = request.headers.get("authorization");
+  const sessionToken = await getSessionToken();
 
   let response: Response;
 
@@ -25,7 +26,7 @@ export async function GET(
       `${backendUrl}/projects/${id}/attachments/${attachmentId}/download`,
       {
         headers: {
-          ...(authorization ? { Authorization: authorization } : {}),
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
         },
         cache: "no-store",
       },

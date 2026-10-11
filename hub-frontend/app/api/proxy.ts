@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  clearSessionCookie,
+  getSessionToken,
+  setSessionCookie,
+} from "./auth/session";
 
 const backendUrl = process.env.BACKEND_URL?.replace(/\/$/, "");
 
@@ -37,7 +42,7 @@ export async function proxyToBackend(
     );
   }
 
-  const authorization = request.headers.get("authorization");
+  const token = await getSessionToken();
 
   let response: Response;
 
@@ -48,7 +53,7 @@ export async function proxyToBackend(
       cache: options.cache,
       headers: {
         ...options.headers,
-        ...(authorization ? { Authorization: authorization } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
   } catch {
@@ -58,15 +63,17 @@ export async function proxyToBackend(
   const contentType =
     response.headers.get("content-type") ?? "application/json";
   const body = await response.text();
-  // Renovación deslizante: el token reemitido viaja al navegador.
   const renewedToken = response.headers.get("x-access-token");
+
+  if (renewedToken) {
+    await setSessionCookie(renewedToken);
+  } else if (response.status === 401) {
+    await clearSessionCookie();
+  }
 
   return new NextResponse(body, {
     status: response.status,
-    headers: {
-      "Content-Type": contentType,
-      ...(renewedToken ? { "x-access-token": renewedToken } : {}),
-    },
+    headers: { "Content-Type": contentType },
   });
 }
 

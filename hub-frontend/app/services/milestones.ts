@@ -1,5 +1,5 @@
 import { ProjectMilestoneItem, ProjectPhase } from "./schemas";
-import { getApiUrl, getAuthHeaders } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 import { ensureOk } from "@/lib/http";
 
 export type CreateProjectMilestonePayload = {
@@ -20,7 +20,6 @@ export async function getProjectMilestones(
   id: string,
 ): Promise<ProjectMilestoneItem[]> {
   const response = await fetch(getApiUrl(`/api/projects/${id}/milestones`), {
-    headers: getAuthHeaders(),
     cache: "no-store",
   });
 
@@ -37,7 +36,6 @@ export async function createProjectMilestone(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -58,7 +56,6 @@ export async function updateProjectMilestone(
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        ...getAuthHeaders(),
       },
       body: JSON.stringify(payload),
     },
@@ -77,7 +74,6 @@ export async function deleteProjectMilestone(
     getApiUrl(`/api/projects/${id}/milestones/${milestoneId}`),
     {
       method: "DELETE",
-      headers: getAuthHeaders(),
     },
   );
 

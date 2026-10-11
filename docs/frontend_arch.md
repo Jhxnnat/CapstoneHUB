@@ -89,16 +89,18 @@ entregas que tienen vínculos.
 ## Autenticación
 
 `AuthProvider` (cliente) mantiene la sesión y la expone por contexto
-(`useAuth`). El login y el registro guardan usuario + token en `localStorage`;
-los services leen el token al hacer peticiones. No hay cookies ni sesión en el
-servidor. El registro (`POST /auth/register` vía el BFF) crea al usuario con rol
-`proposer`, lo deja autenticado igual que el login y redirige a `/submit`. Si un
-usuario con sesión abre `/register`, se le redirige a `/profile`.
+(`useAuth`). La sesión vive en una **cookie httpOnly** que gestiona el BFF
+(`app/api/auth/session.ts`): login y registro la setean y solo devuelven el
+usuario; `GET /api/auth/me` hidrata la sesión al montar; `POST /api/auth/logout`
+la limpia. Los services ya no envían `Authorization` (la cookie viaja sola en
+peticiones same-origin) y el BFF la reenvía al backend como Bearer. El registro
+(`POST /auth/register` vía el BFF) crea al usuario con rol `proposer`, lo deja
+autenticado igual que el login y redirige a `/submit`. Si un usuario con sesión
+abre `/register`, se le redirige a `/profile`.
 
-La sesión se renueva sola: el backend puede devolver un token nuevo en el header
-`x-access-token`, el BFF lo reenvía y `lib/http.ts` avisa a `AuthProvider` para
-guardarlo en `localStorage` (`captureRenewedToken`). Un `401` real limpia la
-sesión y redirige a `/login?next=…`; `logout` también navega al login.
+La renovación deslizante ocurre en el BFF: cuando el backend devuelve
+`x-access-token`, el proxy actualiza la cookie; ante un `401` la limpia y el
+frontend redirige a `/login?next=…`. `logout` también navega al login.
 
 ## Server vs Client Components
 

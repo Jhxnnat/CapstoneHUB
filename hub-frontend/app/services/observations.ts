@@ -1,5 +1,5 @@
 import { ProjectObservationItem } from "./schemas";
-import { getApiUrl, getAuthHeaders } from "@/lib/api";
+import { getApiUrl } from "@/lib/api";
 import { ensureOk } from "@/lib/http";
 
 export async function createProjectObservation(
@@ -10,7 +10,6 @@ export async function createProjectObservation(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeaders(),
     },
     body: JSON.stringify({ content }),
   });
