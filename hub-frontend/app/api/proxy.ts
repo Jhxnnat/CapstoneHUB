@@ -151,6 +151,16 @@ export async function proxyToBackend(
     response.headers.get("content-type") ?? "application/json";
   const body = await response.text();
 
+  // Los estados 204/205/304 no admiten cuerpo; `NextResponse` lanza si se
+  // construye con uno (por ejemplo al reenviar un DELETE 204 del backend).
+  if (
+    response.status === 204 ||
+    response.status === 205 ||
+    response.status === 304
+  ) {
+    return new NextResponse(null, { status: response.status });
+  }
+
   return new NextResponse(body, {
     status: response.status,
     headers: { "Content-Type": contentType },
