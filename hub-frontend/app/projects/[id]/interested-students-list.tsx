@@ -28,13 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getInitials } from "../../services/utils";
 import { SERVICE_UNAVAILABLE_MESSAGE } from "@/lib/http";
 import ServiceUnavailable from "../../components/service-unavailable";
@@ -117,6 +110,9 @@ export default function InterestedStudentsList({
           await dismissProjectInterest(projectId, interest.id);
         }
 
+        setInterests((current) =>
+          current.filter((item) => item.id !== interest.id),
+        );
         setPendingAction(null);
         setReloadKey((key) => key + 1);
       } catch (error) {
@@ -130,16 +126,19 @@ export default function InterestedStudentsList({
     });
   }
 
+  // El panel solo aparece cuando hay estudiantes interesados. Mientras se
+  // carga (o si no hay ninguno) no ocupa espacio en la pestaña Equipo.
+  if (loading && interests.length === 0) {
+    return null;
+  }
+
+  if (!loadError && interests.length === 0) {
+    return null;
+  }
+
   let content: ReactNode;
 
-  if (loading) {
-    content = (
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-16 w-full" />
-      </div>
-    );
-  } else if (loadError === SERVICE_UNAVAILABLE_MESSAGE) {
+  if (loadError === SERVICE_UNAVAILABLE_MESSAGE) {
     content = (
       <ServiceUnavailable
         message={loadError}
@@ -151,18 +150,6 @@ export default function InterestedStudentsList({
       <Alert variant="destructive">
         <AlertDescription>{loadError}</AlertDescription>
       </Alert>
-    );
-  } else if (interests.length === 0) {
-    content = (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyTitle>Sin estudiantes interesados</EmptyTitle>
-          <EmptyDescription>
-            Cuando un estudiante marque este proyecto como interesante aparecerá
-            aquí.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
     );
   } else {
     content = (
@@ -235,11 +222,9 @@ export default function InterestedStudentsList({
       <CardHeader>
         <CardTitle>Estudiantes interesados</CardTitle>
         <CardDescription>
-          {loading
-            ? "Cargando estudiantes interesados..."
-            : interests.length === 0
-              ? "Ningún estudiante ha expresado interés todavía."
-              : `${interests.length} estudiante(s) quieren participar. Asignar a uno elimina su interés.`}
+          {interests.length > 0
+            ? `${interests.length} estudiante(s) quieren participar. Asignar a uno elimina su interés.`
+            : "No se pudieron cargar los estudiantes interesados."}
         </CardDescription>
       </CardHeader>
 
