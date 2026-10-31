@@ -167,18 +167,25 @@ export class CreateProjectDto {
   @MaxLength(250)
   projectScope?: string;
 
-  @ApiPropertyOptional({ description: 'disponibilidad de recursos monetarios: yes, no o na' })
+  @ApiPropertyOptional({
+    description: 'disponibilidad de recursos monetarios: yes, no o na',
+  })
   @IsOptional()
   @IsString()
   monetaryResources?: string;
 
-  @ApiPropertyOptional({ description: 'descripción de los recursos monetarios disponibles' })
+  @ApiPropertyOptional({
+    description: 'descripción de los recursos monetarios disponibles',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(250)
   monetaryResourcesDescription?: string;
 
-  @ApiPropertyOptional({ type: [String], description: 'profesores de contacto' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'profesores de contacto',
+  })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
