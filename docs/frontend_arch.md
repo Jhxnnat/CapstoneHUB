@@ -32,6 +32,7 @@ Ver también: [Arquitectura del backend](./backend_arch.md),
 | `/projects` | Lista de proyectos. |
 | `/projects/[id]` | Detalle por pestañas (general, equipo, hitos, entregas, evaluación, anexos, historial). |
 | `/projects/[id]/edit` | Edición de los datos del proyecto (admin, directivo o actor asignado). |
+| `/profile` | Mi perfil: datos de la cuenta, proyectos propios/asignados y proyectos de interés. |
 | `/submit`, `/submit/natural` | Propuesta de proyecto. |
 | `/profile/kpis` | Panel de indicadores y panorama por semestre (docentes, evaluadores, directivos y admin; el panorama es solo para admin/directivo). |
 | `/admin/users` | Administración de usuarios y roles. |
@@ -61,9 +62,10 @@ el proxy de proyectos.
 
 - `auth.ts` — sesión en `localStorage` (`capstonehub.auth.session`) y funciones
   de login, registro y usuarios.
-- `projects.ts` — proyectos, hitos, observaciones, anexos y contenido de las
-  entregas (texto, enlaces y archivos), incluida la configuración de tipo, MIME
-  permitidos y máximo de archivos, y la edición de los datos del proyecto.
+- `projects.ts` — proyectos, hitos, observaciones, anexos, contenido de las
+  entregas (texto, enlaces y archivos) e intereses de los estudiantes, incluida
+  la configuración de tipo, MIME permitidos y máximo de archivos, y la edición
+  de los datos del proyecto.
 - `schemas.ts` — tipos TypeScript compartidos (`ProjectDetails`, etc.).
 - `roles.ts` — vocabulario de roles globales (`UserRole`) y de proyecto
   (`ActorRole`), y qué roles de proyecto habilita cada rol global.
@@ -106,6 +108,16 @@ no se puede completar hasta que todas estén aceptadas. Al elegir el estado
 «Finalizado» se avisa si aún quedan hitos mínimos pendientes o falta la
 evaluación de la fase. En las entregas se muestra a qué hitos están vinculadas y
 se advierte antes de eliminar hitos o entregas que tienen vínculos.
+
+Los estudiantes ven los proyectos privados en `approved` mediante
+`ProjectPrivatePreview`: una vista con aviso de información limitada, descripción,
+requisitos de equipo, resultados esperados y la tarjeta `ProjectInterestCard`
+para expresar o retirar su interés con un mensaje opcional. La misma tarjeta
+aparece en el detalle de los proyectos públicos aprobados. En la pestaña
+**Equipo**, quienes pueden asignar actores ven la tarjeta
+`InterestedStudentsList` con los estudiantes interesados y acciones para
+asignarlos o descartarlos, con confirmación. El perfil muestra una tarjeta
+**Proyectos de interés** además de **Mis proyectos**.
 
 ## Statusbar y pestañas de usuario
 

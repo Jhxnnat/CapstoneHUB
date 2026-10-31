@@ -70,6 +70,13 @@ listando quién falta; el bloqueo también aplica al `admin`.
     no privados en `approved`, `in_progress` o `paused`, y por supuesto los que
     propuso y en los que está asignado. `proposed`, el legado `under_review`,
     `cancelled` y `rejected` **nunca** se publican.
+  - Los usuarios con rol global `student` ven además los proyectos privados en
+    `approved` en **vista previa**: solo nombre, estado, fase, fuente, ubicación,
+    descripción, requisitos de equipo y resultados esperados. No ven proponente,
+    contacto, contexto, fechas, costo, asesores, información social, alcance,
+    recursos, entregables, equipo ni historial.
+  - Un estudiante conserva la vista previa de un privado mientras tenga un
+    interés registrado, aunque el proyecto haya salido de `approved`.
   - `admin` y `directivo` ven todos los proyectos. Un `evaluator` sin
     asignación solo ve los públicos y los que propuso.
 - A los visitantes que solo pueden ver la información pública se les ocultan las
@@ -101,6 +108,14 @@ Vincula un `User` con un `Project` mediante un `ActorRole` (`teacher`,
 usuario debe tener el rol global que licencia ese rol de proyecto: `student`
 para `student`; `teacher` para `teacher` o `evaluator`; `evaluator` o
 `directivo` para `evaluator`.
+
+### ProjectInterest
+
+Interés de un estudiante por un proyecto aprobado. Guarda `message` opcional y
+`createdAt`; es único por `(projectId, userId)` para que un estudiante no se
+postule dos veces al mismo proyecto. Se elimina en cascada con el proyecto o el
+usuario. Al asignar al estudiante como actor, su interés se elimina en la misma
+transacción.
 
 ### ProjectObservation
 
@@ -271,6 +286,14 @@ classDiagram
         +Int userId
         +ActorRole role
         +DateTime assignedAt
+    }
+
+    class ProjectInterest {
+        +Int id
+        +Int projectId
+        +Int userId
+        +String message
+        +DateTime createdAt
     }
 
     class ProjectObservation {
@@ -476,6 +499,7 @@ classDiagram
 
     User "1" --> "0..*" UserRoleAssignment : roleAssignments
     User "1" --> "0..*" ProjectActorAssignment : projectAssignments
+    User "1" --> "0..*" ProjectInterest : projectInterests
     User "0..1" --> "0..*" ProjectObservation : authoredObservations
     User "0..1" --> "0..*" ProjectStatusHistory : projectStatusHistories
     User "0..1" --> "0..*" ProjectChangeHistory : projectChangeHistories
@@ -489,6 +513,7 @@ classDiagram
     Project "1" *-- "0..*" ProjectDeliverable : deliverables
     Project "1" *-- "0..1" ProjectNaturalProposer : naturalProposer
     Project "1" *-- "0..*" ProjectActorAssignment : actorAssignments
+    Project "1" *-- "0..*" ProjectInterest : interests
     Project "1" *-- "0..*" ProjectObservation : observations
     Project "1" *-- "0..*" ProjectStatusHistory : statusHistory
     Project "1" *-- "0..*" ProjectChangeHistory : changeHistory

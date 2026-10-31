@@ -146,7 +146,10 @@ pasa.
 
 | Acción | Público | admin | directivo | teacher (asignado) | evaluator (asignado) | student (asignado) |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Listar / ver proyectos | sí* | sí | sí | miembro | miembro | miembro |
+| Listar / ver proyectos | sí* | sí | sí | miembro | miembro | miembro + vista previa‡ |
+| Ver privados aprobados (vista previa) | no | sí | sí | no | no | sí‡ |
+| Expresar / retirar interés | no | no | no | no | no | sí‡ |
+| Ver y gestionar estudiantes interesados | no | sí | sí | miembro (docente) | no | no |
 | Crear proyecto | no | rol | rol | rol | rol | rol |
 | Editar datos del proyecto | no | sí | sí | miembro | miembro | no† |
 | Gestionar / borrar proyecto | no | sí | no | miembro | no | no |
@@ -172,7 +175,14 @@ pasa.
 - `Listar / ver proyectos`: sin sesión solo los finalizados y no privados; con
   sesión, además los no privados en `approved`, `in_progress` o `paused`. El
   `directivo` ve todos; un `evaluator` sin asignación solo ve los públicos y los
-  que propuso.
+  que propuso. Los estudiantes ven además los privados en `approved` con
+  información limitada.
+- ‡ Un estudiante con rol global `student` puede interesarse en un proyecto
+  `approved` si no es su proponente ni ya está asignado. El interés lleva un
+  mensaje opcional y se puede retirar; un docente, directivo o admin lo ve en la
+  pestaña **Equipo** y puede asignar al estudiante (lo que elimina el interés) o
+  descartarlo. El estudiante conserva la vista previa del privado mientras tenga
+  interés, aunque el proyecto cambie de estado.
 - `Editar datos del proyecto`: lo permiten `admin` y `directivo` (sin
   asignarse); un `teacher` o `evaluator` asignado al proyecto con su rol
   correspondiente. Un proyecto `closed` o `rejected` es de solo lectura
@@ -337,8 +347,8 @@ El esquema Prisma completo está documentado en
 - **Proyecto**: `Project`, `ProjectSchool`, `ProjectNaturalProposer`,
   `ProjectDeliverable`.
 - **Equipo y seguimiento**: `ProjectActorAssignment`, `ProjectObservation`,
-  `ProjectStatusHistory`, `ProjectChangeHistory`, `ProjectMilestones`,
-  `MilestoneReportLink`.
+  `ProjectInterest`, `ProjectStatusHistory`, `ProjectChangeHistory`,
+  `ProjectMilestones`, `MilestoneReportLink`.
 - **Archivos**: `ProjectAttachment` (solo metadatos; el binario vive en
   S3/RustFS).
 
@@ -456,9 +466,14 @@ Comandos: `npx prisma migrate dev`, `npm run seed` (y variantes como
 | `GET/POST` | `/auth/users` | Listar / crear usuarios (admin). |
 | `PATCH` | `/auth/users/:id/roles` | Reemplazar los roles de un usuario (admin). |
 | `PATCH` | `/auth/me/password` | Cambiar la contraseña propia (valida la actual; `400` si no coincide o si la nueva es igual). |
-| `GET` | `/projects` | Listar los proyectos visibles para el solicitante (sin sesión: solo finalizados y no privados; con sesión: además los no privados aprobados o en ejecución). |
+| `GET` | `/projects` | Listar los proyectos visibles para el solicitante (sin sesión: solo finalizados y no privados; con sesión: además los no privados aprobados o en ejecución; los estudiantes ven los privados aprobados en vista previa). |
 | `GET` | `/projects/mine` | Proyectos propuestos y asignados al usuario. |
-| `GET` | `/projects/:id` | Detalle (404 si el proyecto es privado y el solicitante no es miembro). Incluye `evaluationGate` para miembros: solo fase, evaluadores pendientes y si está completa. |
+| `GET` | `/projects/mine/interests` | Proyectos en los que el usuario expresó interés. |
+| `GET` | `/projects/:id` | Detalle (404 si el proyecto es privado y el solicitante no es miembro; los estudiantes ven los aprobados en vista previa). Incluye `evaluationGate` para miembros y `viewerInterest`/`canExpressInterest` para estudiantes. |
+| `POST` | `/projects/:id/interests` | Expresar interés en un proyecto aprobado con mensaje opcional (estudiante, no proponente ni asignado). Devuelve el detalle actualizado. |
+| `DELETE` | `/projects/:id/interests/me` | Retirar el interés propio (`204`). |
+| `GET` | `/projects/:id/interests` | Listar estudiantes interesados (admin, directivo o docente asignado). |
+| `DELETE` | `/projects/:id/interests/:interestId` | Descartar un interés (admin, directivo o docente asignado; `204`). |
 | `POST` | `/projects` | Crear un proyecto; `isPrivate` lo define el proponente. |
 | `PUT` | `/projects/:id` | Editar los datos (admin, directivo o docente/evaluador asignado; proponente mientras siga en propuesta; `409` si está finalizado/rechazado). Registra historial por campo. |
 | `DELETE` | `/projects/:id` | Borrar (admin o docente asignado). |
@@ -501,8 +516,14 @@ mostrados, y si es inválido se responde `401` en lugar de degradar a anónimo.
 - `projectVisibilityWhere(viewer)` construye el `where` de Prisma del listado y
   el detalle: para visitantes anónimos, público es `isPrivate = false` y estado
   `closed`; para usuarios autenticados, además los no privados en `approved`,
-  `in_progress` o `paused`. A eso se suman `proposerUserId` y las asignaciones
-  del solicitante; los roles `admin` y `directivo` ven todo.
+  `in_progress` o `paused`. A eso se suman `proposerUserId`, las asignaciones y
+  los intereses del solicitante; los roles `admin` y `directivo` ven todo. Los
+  estudiantes ven además los privados en `approved` en modo de vista previa.
 - `assertProjectMember` (usado por observaciones, hitos, anexos y entregas) es
   de miembros: proponente, actores asignados y roles revisores. Los proyectos
-  públicos solo exponen su información base en el listado y el detalle.
+  públicos solo exponen su información base en el listado y el detalle. La vista
+  previa de un privado expone aún menos: nombre, estado, fase, fuente, ubicación,
+  descripción, requisitos de equipo y resultados esperados.
+- `canExpressInterest` exige rol global `student`, proyecto `approved`, y que el
+  solicitante no sea el proponente ni un actor asignado. El interés duplicado y
+  el estado se validan en `ProjectsService`.
