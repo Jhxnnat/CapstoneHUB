@@ -95,6 +95,7 @@ model User {
   reviewedReports        ProjectReport[]           @relation("ReportReviewedBy")
   reportContents         ProjectReportContent[]    @relation("ReportContentCreatedBy")
   proposedProjects       Project[]                 @relation("ProjectProposedBy")
+  projectInterests       ProjectInterest[]
   phaseApprovals         ProjectPhaseApproval[]
   createdRubricTemplates RubricTemplate[]          @relation("RubricTemplateCreatedBy")
   rubricAssignments      ProjectRubricAssignment[] @relation("RubricAssignmentAssignedBy")
@@ -119,43 +120,44 @@ model UserRoleAssignment {
 }
 
 model Project {
-  id                   Int           @id @default(autoincrement())
-  name                 String        @db.VarChar(255)
-  description          String        @db.Text
-  context              String        @db.Text
-  location             String?       @db.VarChar(255)
-  status               ProjectStatus @default(proposed)
-  startDate            DateTime?     @map("start_date")
-  endDate              DateTime?     @map("end_date")
-  estimatedCost        Decimal?      @map("estimated_cost") @db.Decimal(12, 2)
-  requiresLegalization Boolean       @default(false) @map("requires_legalization")
-  isPrivate            Boolean       @default(true) @map("is_private")
-  source               ProjectSource @default(external_entity)
-  phase                ProjectPhase  @default(semester_1)
-  facultyAdvisor       String?       @map("faculty_advisor") @db.VarChar(255)
-  teamRequirements     String?       @map("team_requirements") @db.Text
-  expectedOutcomes     String?       @map("expected_outcomes") @db.Text
-  proposerUserId       Int?          @map("proposer_user_id")
-  createdAt            DateTime      @default(now()) @map("created_at")
-  updatedAt            DateTime      @updatedAt @map("updated_at")
-  sourceDetails        String?       @map("source_details") @db.VarChar(250)
-  submissionConsentAt  DateTime?     @map("submission_consent_at")
-  engineeringArea      String?       @map("engineering_area") @db.VarChar(100)
-  externalAdvisorName  String?       @map("external_advisor_name") @db.VarChar(255)
-  externalAdvisorEmail String?       @map("external_advisor_email") @db.VarChar(255)
-  nit                  String?       @db.VarChar(30)
-  researchGroup        String?       @map("research_group") @db.VarChar(255)
-  socialOrganization   String?       @map("social_organization") @db.VarChar(255)
-  socialLocation       String?       @map("social_location") @db.VarChar(255)
-  projectScope         String?       @map("project_scope") @db.Text
-  monetaryResources    String?       @map("monetary_resources") @db.VarChar(10)
-  monetaryResourcesDescription String? @map("monetary_resources_description") @db.Text
-  facultyAdvisors      String[]      @default([]) @map("faculty_advisors")
+  id                           Int           @id @default(autoincrement())
+  name                         String        @db.VarChar(255)
+  description                  String        @db.Text
+  context                      String        @db.Text
+  location                     String?       @db.VarChar(255)
+  status                       ProjectStatus @default(proposed)
+  startDate                    DateTime?     @map("start_date")
+  endDate                      DateTime?     @map("end_date")
+  estimatedCost                Decimal?      @map("estimated_cost") @db.Decimal(12, 2)
+  requiresLegalization         Boolean       @default(false) @map("requires_legalization")
+  isPrivate                    Boolean       @default(true) @map("is_private")
+  source                       ProjectSource @default(external_entity)
+  phase                        ProjectPhase  @default(semester_1)
+  facultyAdvisor               String?       @map("faculty_advisor") @db.VarChar(255)
+  teamRequirements             String?       @map("team_requirements") @db.Text
+  expectedOutcomes             String?       @map("expected_outcomes") @db.Text
+  proposerUserId               Int?          @map("proposer_user_id")
+  createdAt                    DateTime      @default(now()) @map("created_at")
+  updatedAt                    DateTime      @updatedAt @map("updated_at")
+  sourceDetails                String?       @map("source_details") @db.VarChar(250)
+  submissionConsentAt          DateTime?     @map("submission_consent_at")
+  engineeringArea              String?       @map("engineering_area") @db.VarChar(100)
+  externalAdvisorName          String?       @map("external_advisor_name") @db.VarChar(255)
+  externalAdvisorEmail         String?       @map("external_advisor_email") @db.VarChar(255)
+  nit                          String?       @db.VarChar(30)
+  researchGroup                String?       @map("research_group") @db.VarChar(255)
+  socialOrganization           String?       @map("social_organization") @db.VarChar(255)
+  socialLocation               String?       @map("social_location") @db.VarChar(255)
+  projectScope                 String?       @map("project_scope") @db.Text
+  monetaryResources            String?       @map("monetary_resources") @db.VarChar(10)
+  monetaryResourcesDescription String?       @map("monetary_resources_description") @db.Text
+  facultyAdvisors              String[]      @default([]) @map("faculty_advisors")
 
   proposer          User?                     @relation("ProjectProposedBy", fields: [proposerUserId], references: [id], onDelete: SetNull)
   schools           ProjectSchool[]
   naturalProposer   ProjectNaturalProposer?
   actorAssignments  ProjectActorAssignment[]
+  interests         ProjectInterest[]
   observations      ProjectObservation[]
   statusHistory     ProjectStatusHistory[]
   milestones        ProjectMilestones[]
@@ -228,6 +230,22 @@ model ProjectActorAssignment {
   @@index([userId], map: "idx_project_user_user_id")
   @@index([role], map: "idx_project_actor_role")
   @@map("project_actor_assignment")
+}
+
+model ProjectInterest {
+  id        Int      @id @default(autoincrement())
+  projectId Int      @map("project_id")
+  userId    Int      @map("user_id")
+  message   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId], map: "uk_project_interest")
+  @@index([projectId], map: "idx_project_interest_project_id")
+  @@index([userId], map: "idx_project_interest_user_id")
+  @@map("project_interest")
 }
 
 model ProjectObservation {
