@@ -767,11 +767,12 @@ describe('AuthorizationService', () => {
           },
           { proposerUserId: 7 },
           { actorAssignments: { some: { userId: 7 } } },
+          { interests: { some: { userId: 7 } } },
         ],
       });
     });
 
-    it('scopes listings to public, own and assigned projects', () => {
+    it('adds approved private projects to student listings', () => {
       const service = new AuthorizationService({} as never);
 
       expect(service.projectVisibilityWhere(user([UserRole.student]))).toEqual({
@@ -789,8 +790,78 @@ describe('AuthorizationService', () => {
           },
           { proposerUserId: 7 },
           { actorAssignments: { some: { userId: 7 } } },
+          { interests: { some: { userId: 7 } } },
+          { isPrivate: true, status: ProjectStatus.approved },
         ],
       });
+    });
+
+    it('does not add the private-approved condition for teachers', () => {
+      const service = new AuthorizationService({} as never);
+
+      const where = service.projectVisibilityWhere(
+        user([UserRole.teacher]),
+      ) as { OR: unknown[] };
+
+      expect(where.OR).not.toContainEqual({
+        isPrivate: true,
+        status: ProjectStatus.approved,
+      });
+    });
+
+    it('lets students express interest in approved projects they do not own', () => {
+      const service = new AuthorizationService({} as never);
+
+      expect(
+        service.canExpressInterest(user([UserRole.student]), {
+          status: ProjectStatus.approved,
+          proposerUserId: 999,
+          actorAssignments: [],
+        }),
+      ).toBe(true);
+    });
+
+    it('rejects interest from non-students, reviewers and project members', () => {
+      const service = new AuthorizationService({} as never);
+      const project = {
+        status: ProjectStatus.approved,
+        proposerUserId: 999,
+        actorAssignments: [],
+      };
+
+      expect(
+        service.canExpressInterest(user([UserRole.teacher]), project),
+      ).toBe(false);
+      expect(
+        service.canExpressInterest(
+          user([UserRole.student, UserRole.directivo]),
+          project,
+        ),
+      ).toBe(false);
+      expect(
+        service.canExpressInterest(user([UserRole.student]), {
+          ...project,
+          proposerUserId: 7,
+        }),
+      ).toBe(false);
+      expect(
+        service.canExpressInterest(user([UserRole.student]), {
+          ...project,
+          actorAssignments: [{ userId: 7 }],
+        }),
+      ).toBe(false);
+    });
+
+    it('rejects interest when the project is not approved', () => {
+      const service = new AuthorizationService({} as never);
+
+      expect(
+        service.canExpressInterest(user([UserRole.student]), {
+          status: ProjectStatus.in_progress,
+          proposerUserId: 999,
+          actorAssignments: [],
+        }),
+      ).toBe(false);
     });
 
     it('exposes the pure membership check for loaded projects', () => {

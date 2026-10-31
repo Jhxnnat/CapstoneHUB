@@ -32,6 +32,13 @@ const EVALUATOR_USER = {
   roles: [UserRole.evaluator],
 };
 
+const STUDENT_USER = {
+  id: 5,
+  fullName: 'Student',
+  email: 'student@example.com',
+  roles: [UserRole.student],
+};
+
 type ProjectFindManyArgs = {
   skip?: number;
   take?: number;
@@ -53,6 +60,9 @@ function createProjectDetail() {
     requiresLegalization: false,
     isPrivate: true,
     canViewSensitiveData: true,
+    isPrivatePreview: false,
+    canExpressInterest: false,
+    viewerInterest: null,
     source: ProjectSource.external_entity,
     sourceDetails: null,
     facultyAdvisor: null,
@@ -113,6 +123,11 @@ function createAuthorizationMock() {
     assertCanEditProjectDetails: jest.fn().mockResolvedValue(undefined),
     assertCanApproveProjectPhase: jest.fn().mockResolvedValue('proposer'),
     projectVisibilityWhere: jest.fn().mockReturnValue({}),
+    canReviewAnyProject: jest.fn(
+      (viewer: { roles: UserRole[] }) =>
+        viewer.roles.includes(UserRole.admin) ||
+        viewer.roles.includes(UserRole.directivo),
+    ),
     // Espejo de la lógica real, para no duplicar reglas en cada test.
     canViewProjectData: jest.fn(
       (
@@ -126,6 +141,24 @@ function createAuthorizationMock() {
         viewer.roles.includes(UserRole.directivo) ||
         project.proposerUserId === viewer.id ||
         project.actorAssignments.some(
+          (assignment) => assignment.userId === viewer.id,
+        ),
+    ),
+    canExpressInterest: jest.fn(
+      (
+        viewer: { id: number; roles: UserRole[] },
+        project: {
+          status: ProjectStatus;
+          proposerUserId: number | null;
+          actorAssignments: { userId: number }[];
+        },
+      ) =>
+        viewer.roles.includes(UserRole.student) &&
+        !viewer.roles.includes(UserRole.admin) &&
+        !viewer.roles.includes(UserRole.directivo) &&
+        project.status === ProjectStatus.approved &&
+        project.proposerUserId !== viewer.id &&
+        !project.actorAssignments.some(
           (assignment) => assignment.userId === viewer.id,
         ),
     ),
@@ -1041,6 +1074,7 @@ describe('ProjectsService', () => {
     };
     const prisma = {
       project: { findFirst: jest.fn().mockResolvedValue(project) },
+      projectInterest: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     const authorization = {
       ...createAuthorizationMock(),
@@ -1051,6 +1085,338 @@ describe('ProjectsService', () => {
     const result = await service.project({ id: 33 }, EVALUATOR_USER);
 
     expect(result?.canViewSensitiveData).toBe(true);
+  });
+
+  describe('project interests', () => {
+    it('registers a student interest in an approved project', async () => {
+      const createInterest = jest.fn().mockResolvedValue(undefined);
+      const prisma = {
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 10,
+            status: ProjectStatus.approved,
+            proposerUserId: 999,
+            actorAssignments: [],
+          }),
+        },
+        projectInterest: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          create: createInterest,
+        },
+      };
+      const service = createService(prisma, createAuthorizationMock());
+      jest.spyOn(service, 'project').mockResolvedValue({
+        ...createProjectDetail(),
+        viewerInterest: {
+          id: 1,
+          message: 'Me interesa',
+          createdAt: new Date(),
+        },
+      });
+
+      const result = await service.addProjectInterest({
+        user: STUDENT_USER,
+        projectId: 10,
+        message: '  Me interesa  ',
+      });
+
+      expect(createInterest).toHaveBeenCalledWith({
+        data: {
+          projectId: 10,
+          userId: STUDENT_USER.id,
+          message: 'Me interesa',
+        },
+      });
+      expect(result.viewerInterest).toMatchObject({ message: 'Me interesa' });
+    });
+
+    it('rejects interest from users without the student role', async () => {
+      const service = createService({}, createAuthorizationMock());
+
+      await expect(
+        service.addProjectInterest({
+          user: EVALUATOR_USER,
+          projectId: 10,
+        }),
+      ).rejects.toThrow('Only students can express interest');
+    });
+
+    it('rejects interest when the project is not approved', async () => {
+      const prisma = {
+        project: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 10,
+            status: ProjectStatus.in_progress,
+            proposerUserId: 999,
+            actorAssignments: [],
+          }),
+        },
+      };
+      const service = createService(prisma, createAuthorizationMock());
+
+      await expect(
+        service.addProjectInterest({
+          user: STUDENT_USER,
+          projectId: 10,
+        }),
+      ).rejects.toThrow('Only approved projects accept new interests');
+    });
+
+    it('rejects interest in own projects, assigned projects and duplicates', async () => {
+      const ownProject = {
+        id: 10,
+        status: ProjectStatus.approved,
+        proposerUserId: STUDENT_USER.id,
+        actorAssignments: [],
+      };
+      const ownService = createService(
+        {
+          project: { findFirst: jest.fn().mockResolvedValue(ownProject) },
+        },
+        createAuthorizationMock(),
+      );
+
+      await expect(
+        ownService.addProjectInterest({
+          user: STUDENT_USER,
+          projectId: 10,
+        }),
+      ).rejects.toThrow('your own project');
+
+      const assignedProject = {
+        ...ownProject,
+        proposerUserId: 999,
+        actorAssignments: [{ id: 1 }],
+      };
+      const assignedService = createService(
+        {
+          project: { findFirst: jest.fn().mockResolvedValue(assignedProject) },
+        },
+        createAuthorizationMock(),
+      );
+
+      await expect(
+        assignedService.addProjectInterest({
+          user: STUDENT_USER,
+          projectId: 10,
+        }),
+      ).rejects.toThrow('already assigned');
+
+      const duplicateService = createService(
+        {
+          project: {
+            findFirst: jest.fn().mockResolvedValue({
+              ...ownProject,
+              proposerUserId: 999,
+            }),
+          },
+          projectInterest: {
+            findUnique: jest.fn().mockResolvedValue({ id: 1 }),
+          },
+        },
+        createAuthorizationMock(),
+      );
+
+      await expect(
+        duplicateService.addProjectInterest({
+          user: STUDENT_USER,
+          projectId: 10,
+        }),
+      ).rejects.toThrow('already expressed interest');
+    });
+
+    it('removes the current user interest idempotently', async () => {
+      const deleteMany = jest.fn().mockResolvedValue({ count: 0 });
+      const service = createService(
+        { projectInterest: { deleteMany } },
+        createAuthorizationMock(),
+      );
+
+      await service.removeProjectInterest(STUDENT_USER, 10);
+
+      expect(deleteMany).toHaveBeenCalledWith({
+        where: { projectId: 10, userId: STUDENT_USER.id },
+      });
+    });
+
+    it('lists the current user interests with project data', async () => {
+      const interestedAt = new Date('2026-10-30T12:00:00.000Z');
+      const findMany = jest.fn().mockResolvedValue([
+        {
+          id: 1,
+          projectId: 10,
+          userId: STUDENT_USER.id,
+          message: 'Quiero participar',
+          createdAt: interestedAt,
+          project: {
+            id: 10,
+            name: 'Project',
+            status: ProjectStatus.approved,
+            startDate: null,
+            location: 'Bogotá',
+            isPrivate: true,
+          },
+        },
+      ]);
+      const service = createService(
+        { projectInterest: { findMany } },
+        createAuthorizationMock(),
+      );
+
+      const result = await service.projectsForUserInterests(STUDENT_USER);
+
+      expect(findMany).toHaveBeenCalledWith({
+        where: { userId: STUDENT_USER.id },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              startDate: true,
+              location: true,
+              isPrivate: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual([
+        {
+          id: 10,
+          name: 'Project',
+          status: ProjectStatus.approved,
+          startDate: null,
+          location: 'Bogotá',
+          isPrivate: true,
+          interestMessage: 'Quiero participar',
+          interestedAt,
+        },
+      ]);
+    });
+
+    it('lists interested students only after authorizing the manager', async () => {
+      const createdAt = new Date('2026-10-30T12:00:00.000Z');
+      const findMany = jest.fn().mockResolvedValue([
+        {
+          id: 3,
+          projectId: 10,
+          userId: 5,
+          message: null,
+          createdAt,
+          user: {
+            id: 5,
+            fullName: 'Student',
+            email: 'student@example.com',
+          },
+        },
+      ]);
+      const authorization = createAuthorizationMock();
+      const service = createService(
+        { projectInterest: { findMany } },
+        authorization,
+      );
+
+      const result = await service.projectInterests(ADMIN_USER, 10);
+
+      expect(authorization.assertCanAssignActors).toHaveBeenCalledWith(
+        ADMIN_USER,
+        10,
+      );
+      expect(result).toEqual([
+        {
+          id: 3,
+          projectId: 10,
+          message: null,
+          createdAt,
+          user: {
+            id: 5,
+            fullName: 'Student',
+            email: 'student@example.com',
+          },
+        },
+      ]);
+    });
+
+    it('dismisses interests and reports missing records', async () => {
+      const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+      const service = createService(
+        { projectInterest: { deleteMany } },
+        createAuthorizationMock(),
+      );
+
+      await service.dismissProjectInterest({
+        user: ADMIN_USER,
+        projectId: 10,
+        interestId: 3,
+      });
+      expect(deleteMany).toHaveBeenCalledWith({
+        where: { id: 3, projectId: 10 },
+      });
+
+      deleteMany.mockResolvedValueOnce({ count: 0 });
+      await expect(
+        service.dismissProjectInterest({
+          user: ADMIN_USER,
+          projectId: 10,
+          interestId: 99,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('removes the student interest when the manager assigns them', async () => {
+      const assignment = {
+        id: 7,
+        projectId: 10,
+        userId: 5,
+        role: ActorRole.student,
+        assignedAt: new Date(),
+        project: { id: 10, name: 'Project' },
+        user: {
+          id: 5,
+          fullName: 'Student',
+          email: 'student@example.com',
+        },
+      };
+      const createAssignment = jest.fn().mockResolvedValue(assignment);
+      const deleteInterest = jest.fn().mockResolvedValue({ count: 1 });
+      const transaction = {
+        projectActorAssignment: { create: createAssignment },
+        projectInterest: { deleteMany: deleteInterest },
+      };
+      const prisma = {
+        project: {
+          findUnique: jest.fn().mockResolvedValue({ id: 10, name: 'Project' }),
+        },
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 5,
+            fullName: 'Student',
+            email: 'student@example.com',
+            isActive: true,
+          }),
+        },
+        projectActorAssignment: {
+          findUnique: jest.fn().mockResolvedValue(null),
+        },
+        $transaction: jest.fn((callback: (tx: typeof transaction) => unknown) =>
+          callback(transaction),
+        ),
+      };
+      const service = createService(prisma, createAuthorizationMock());
+
+      const result = await service.addProjectActorAssignment({
+        user: ADMIN_USER,
+        projectId: 10,
+        userId: 5,
+        role: ActorRole.student,
+      });
+
+      expect(result).toBe(assignment);
+      expect(deleteInterest).toHaveBeenCalledWith({
+        where: { projectId: 10, userId: 5 },
+      });
+    });
   });
 
   describe('diffProjectUpdate', () => {
