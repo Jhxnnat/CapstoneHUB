@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { LoggerMiddleware } from './logger.middleware';
 
 class FakeResponse extends EventEmitter {
@@ -33,11 +33,7 @@ function runMiddleware(options: RunOptions = {}) {
   };
 
   const next = jest.fn();
-  middleware.use(
-    req as unknown as Request,
-    res as unknown as Response,
-    next as unknown as NextFunction,
-  );
+  middleware.use(req as unknown as Request, res as unknown as Response, next);
 
   return { res, next, req };
 }
