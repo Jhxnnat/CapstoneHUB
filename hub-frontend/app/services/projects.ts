@@ -1,15 +1,18 @@
 import {
   ProjectDetails,
+  ProjectInterestItem,
   ProjectItem,
   ProjectSource,
   UserSummary,
   MyProject,
+  MyProjectInterest,
   UpdateProjectPayload,
 } from "./schemas";
 import { getApiUrl } from "@/lib/api";
 import {
   apiErrorMessage,
   apiRequest,
+  apiRequestVoid,
   notifyUnauthorized,
 } from "@/lib/http";
 
@@ -183,6 +186,104 @@ export async function getMyProjects(): Promise<{
       error: "Unable to reach the backend projects endpoint: " + err,
     };
   }
+}
+
+export async function getMyProjectInterests(): Promise<{
+  projects: MyProjectInterest[];
+  error?: string;
+}> {
+  try {
+    const response = await fetch(getApiUrl("/api/projects/mine/interests"), {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        notifyUnauthorized();
+      }
+
+      return {
+        projects: [],
+        error: await apiErrorMessage(response),
+      };
+    }
+
+    const data = (await response.json()) as MyProjectInterest[];
+    return {
+      projects: Array.isArray(data) ? data : [],
+    };
+  } catch (err) {
+    return {
+      projects: [],
+      error: "Unable to reach the backend projects endpoint: " + err,
+    };
+  }
+}
+
+export async function getProjectInterests(projectId: number): Promise<{
+  interests: ProjectInterestItem[];
+  error?: string;
+}> {
+  try {
+    const response = await fetch(
+      getApiUrl(`/api/projects/${projectId}/interests`),
+      { cache: "no-store" },
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        notifyUnauthorized();
+      }
+
+      return {
+        interests: [],
+        error: await apiErrorMessage(response),
+      };
+    }
+
+    const data = (await response.json()) as ProjectInterestItem[];
+    return {
+      interests: Array.isArray(data) ? data : [],
+    };
+  } catch (err) {
+    return {
+      interests: [],
+      error: "Unable to reach the backend projects endpoint: " + err,
+    };
+  }
+}
+
+export function expressProjectInterest(
+  projectId: number,
+  message?: string,
+): Promise<ProjectDetails> {
+  return apiRequest<ProjectDetails>(`/api/projects/${projectId}/interests`, {
+    method: "POST",
+    body: { message: message?.trim() || undefined },
+    action: "expresar interés en el proyecto",
+    conflictMessage:
+      "No se pudo registrar el interés. Puede que ya estés interesado o que el proyecto ya no esté aprobado.",
+  });
+}
+
+export function withdrawProjectInterest(projectId: number): Promise<void> {
+  return apiRequestVoid(`/api/projects/${projectId}/interests/me`, {
+    method: "DELETE",
+    action: "retirar el interés del proyecto",
+  });
+}
+
+export function dismissProjectInterest(
+  projectId: number,
+  interestId: number,
+): Promise<void> {
+  return apiRequestVoid(
+    `/api/projects/${projectId}/interests/${interestId}`,
+    {
+      method: "DELETE",
+      action: "descartar el interés del estudiante",
+    },
+  );
 }
 
 export async function getProjectById(id: string): Promise<{

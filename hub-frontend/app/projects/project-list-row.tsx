@@ -15,6 +15,8 @@ export default function ProjectListRow({
   density,
 }: ProjectListRowProps) {
   const year = getProjectYear(project);
+  const showProposer = !project.isPrivatePreview;
+  const hasMeta = showProposer || Boolean(project.location);
 
   if (density === "compact") {
     return (
@@ -71,13 +73,21 @@ export default function ProjectListRow({
           {project.isPrivate ? (
             <Badge variant="outline">Privado</Badge>
           ) : null}
+
+          {project.isPrivatePreview ? (
+            <Badge variant="secondary">Vista previa</Badge>
+          ) : null}
         </div>
 
-        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span>{project.proposer?.fullName ?? "Sin proponente"}</span>
+        {hasMeta ? (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {showProposer ? (
+              <span>{project.proposer?.fullName ?? "Sin proponente"}</span>
+            ) : null}
 
-          {project.location ? <span>{project.location}</span> : null}
-        </p>
+            {project.location ? <span>{project.location}</span> : null}
+          </p>
+        ) : null}
       </Link>
     </li>
   );

@@ -7,10 +7,12 @@ import ProjectCategoriesPanel from "./project-categories-panel";
 import ProjectDetailsBadges from "./project-details-badges";
 import ProjectDetailsSkeleton from "./project-details-skeleton";
 import ProjectGeneralTab from "./project-general-tab";
+import ProjectInterestCard from "./project-interest-card";
 import ProjectMemberTabs from "./project-member-tabs";
 import ProjectMissingState from "./project-missing-state";
 import ProjectPhaseActions from "./project-phase-actions";
 import ProjectPhaseApprovals from "./project-phase-approvals";
+import ProjectPrivatePreview from "./project-private-preview";
 import ProjectTabs from "./project-tabs";
 import { visibleProjectTabs } from "./project-tabs-config";
 import { useCanEditProject } from "./use-can-edit-project";
@@ -72,6 +74,17 @@ export default function ProjectDetailsView({ id }: { readonly id: string }) {
     return <ProjectMissingState status={status} />;
   }
 
+  if (project.isPrivatePreview) {
+    return (
+      <PageFrame eyebrow={`Proyecto #${project.id}`} title={project.name}>
+        <ProjectPrivatePreview
+          project={project}
+          onProjectChange={refresh}
+        />
+      </PageFrame>
+    );
+  }
+
   const assignments = project.actorAssignments ?? [];
   const canViewEvaluation = session
     ? canViewProjectEvaluations(session.user, assignments)
@@ -91,6 +104,16 @@ export default function ProjectDetailsView({ id }: { readonly id: string }) {
             visibles para el proponente, los actores asignados y los directivos.
           </AlertDescription>
         </Alert>
+      ) : null}
+
+      {!isMember &&
+      (project.canExpressInterest || project.viewerInterest != null) ? (
+        <div className="mb-6">
+          <ProjectInterestCard
+            project={project}
+            onProjectChange={refresh}
+          />
+        </div>
       ) : null}
 
       <Card>

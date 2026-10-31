@@ -55,7 +55,7 @@ export default function ProjectsExplorer() {
       <AccessNotice
         className="rounded-2xl"
         title="Inicia sesión para ver los proyectos"
-        message="Solo los proyectos finalizados y públicos se pueden consultar sin cuenta. Inicia sesión para ver tus proyectos propuestos y asignados."
+        message="Solo los proyectos finalizados y públicos se pueden consultar sin cuenta. Inicia sesión para ver los proyectos aprobados, los tuyos y tus intereses."
       />
     );
   }
@@ -76,7 +76,7 @@ export default function ProjectsExplorer() {
           <EmptyDescription>
             {proposedByMe
               ? "Todavía no se encontraron propuestas registradas por tu cuenta."
-              : "No se encontraron proyectos visibles para tu cuenta. Propón uno nuevo para empezar."}
+              : "No se encontraron proyectos visibles para tu cuenta. Explora los proyectos aprobados o propón uno nuevo."}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

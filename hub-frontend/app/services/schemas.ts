@@ -206,6 +206,26 @@ export type ProjectItem = {
   actors: ProjectActor[];
   estimatedCost?: string | null;
   canViewSensitiveData?: boolean;
+  /** `true` cuando es un privado visible solo como vista previa. */
+  isPrivatePreview?: boolean;
+};
+
+export type ProjectViewerInterest = {
+  id: number;
+  message: string | null;
+  createdAt: string;
+};
+
+export type ProjectInterestItem = {
+  id: number;
+  projectId: number;
+  message: string | null;
+  createdAt: string;
+  user: {
+    id: number;
+    fullName: string;
+    email: string;
+  };
 };
 
 export type MyProject = {
@@ -217,6 +237,18 @@ export type MyProject = {
   isPrivate?: boolean;
   myRole: ActorRole | null;
   isProposer: boolean;
+};
+
+/** Proyecto interesado tal como llega al perfil del estudiante. */
+export type MyProjectInterest = {
+  id: number;
+  name: string;
+  status: string;
+  startDate: string | null;
+  location: string | null;
+  isPrivate: boolean;
+  interestMessage: string | null;
+  interestedAt: string;
 };
 
 export type ProjectDeliverableItem = {
@@ -255,6 +287,12 @@ export type ProjectDetails = {
   requiresLegalization?: boolean;
   isPrivate?: boolean;
   canViewSensitiveData?: boolean;
+  /** `true` cuando es un privado visible solo como vista previa. */
+  isPrivatePreview?: boolean;
+  /** `true` si el usuario actual puede expresar interés ahora. */
+  canExpressInterest?: boolean;
+  /** Interés del usuario actual, si ya existe. */
+  viewerInterest?: ProjectViewerInterest | null;
   /** `true` cuando el usuario actual propuso el proyecto. */
   isProposer?: boolean;
   /** Visto bueno de fase: quién falta y quién ya aprobó. */

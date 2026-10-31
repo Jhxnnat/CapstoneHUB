@@ -19,6 +19,10 @@ export default function ProjectDetailsBadges({
       {project.phase ? (
         <Badge variant="outline">{formatPhase(project.phase)}</Badge>
       ) : null}
+      {project.isPrivate ? <Badge variant="outline">Privado</Badge> : null}
+      {project.viewerInterest ? (
+        <Badge variant="secondary">Interesado</Badge>
+      ) : null}
       <ProjectAssignmentBadge assignments={project.actorAssignments ?? []} />
       <ProjectLegalizationBadge
         requiresLegalization={project.requiresLegalization}
