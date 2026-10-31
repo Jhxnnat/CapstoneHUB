@@ -122,6 +122,38 @@ export type ProjectListResponse = {
   actors: ProjectActorResponse[];
   /** `false` cuando el espectador solo puede ver la vista pública, sin datos sensibles. */
   canViewSensitiveData: boolean;
+  /** `true` cuando es un privado que el espectador solo ve en vista previa. */
+  isPrivatePreview: boolean;
+};
+
+export type ProjectViewerInterestResponse = {
+  id: number;
+  message: string | null;
+  createdAt: Date;
+};
+
+export type ProjectInterestResponse = {
+  id: number;
+  projectId: number;
+  message: string | null;
+  createdAt: Date;
+  user: {
+    id: number;
+    fullName: string;
+    email: string;
+  };
+};
+
+/** Proyecto interesado tal como se muestra en el perfil del estudiante. */
+export type MyProjectInterestResponse = {
+  id: number;
+  name: string;
+  status: ProjectStatus;
+  startDate: Date | null;
+  location: string | null;
+  isPrivate: boolean;
+  interestMessage: string | null;
+  interestedAt: Date;
 };
 
 export type ProjectActorResponse = {
@@ -259,6 +291,10 @@ export type ProjectDetailResponse = ProjectListResponse & {
   }[];
   attachments: ProjectAttachmentResponse[];
   reports: ProjectReportResponse[];
+  /** `true` si el espectador puede crear un interés en este momento. */
+  canExpressInterest: boolean;
+  /** Interés del espectador, si ya existe. */
+  viewerInterest: ProjectViewerInterestResponse | null;
 };
 
 export type ProjectActorAssignmentResponse = {
@@ -352,24 +388,31 @@ export function mapProjectListResponse(
   project: ProjectWithRelations,
   canViewSensitiveData: boolean,
 ): ProjectListResponse {
+  const isPrivatePreview = project.isPrivate && !canViewSensitiveData;
+
   return {
     id: project.id,
     name: project.name,
     status: project.status,
     phase: project.phase,
-    startDate: project.startDate,
+    startDate: isPrivatePreview ? null : project.startDate,
     location: project.location,
-    requiresLegalization: project.requiresLegalization,
+    requiresLegalization: isPrivatePreview
+      ? false
+      : project.requiresLegalization,
     isPrivate: project.isPrivate,
     source: project.source,
-    sourceDetails: project.sourceDetails,
-    proposer: mapProjectProposer(project, canViewSensitiveData),
+    sourceDetails: isPrivatePreview ? null : project.sourceDetails,
+    proposer: isPrivatePreview
+      ? null
+      : mapProjectProposer(project, canViewSensitiveData),
     // El equipo (nombres y correos) es sensible, así que solo se expone a los
     // miembros mientras el proyecto no sea todavía público.
     actors: canViewSensitiveData
       ? project.actorAssignments.map(mapActorBase)
       : [],
     canViewSensitiveData,
+    isPrivatePreview,
   };
 }
 
@@ -408,48 +451,65 @@ function mapPhaseApprovals(
   };
 }
 
+export type ProjectDetailViewerContext = {
+  canExpressInterest?: boolean;
+  viewerInterest?: ProjectViewerInterestResponse | null;
+};
+
 export function mapProjectDetailResponse(
   project: ProjectWithRelations,
   canViewSensitiveData: boolean,
   viewer?: AuthenticatedUser,
+  viewerContext: ProjectDetailViewerContext = {},
 ): ProjectDetailResponse {
+  const privatePreview = project.isPrivate && !canViewSensitiveData;
+  const { canExpressInterest = false, viewerInterest = null } = viewerContext;
+
   return {
     ...mapProjectListResponse(project, canViewSensitiveData),
     description: project.description,
-    context: project.context,
-    startDate: project.startDate,
-    endDate: project.endDate,
-    estimatedCost: project.estimatedCost,
-    facultyAdvisor: project.facultyAdvisor,
+    // La vista previa de un privado solo conserva la información necesaria
+    // para que el estudiante decida si le interesa el proyecto.
+    context: privatePreview ? '' : project.context,
+    startDate: privatePreview ? null : project.startDate,
+    endDate: privatePreview ? null : project.endDate,
+    estimatedCost: privatePreview ? null : project.estimatedCost,
+    facultyAdvisor: privatePreview ? null : project.facultyAdvisor,
     facultyAdvisors: canViewSensitiveData ? project.facultyAdvisors : [],
-    engineeringArea: project.engineeringArea,
+    engineeringArea: privatePreview ? null : project.engineeringArea,
     externalAdvisorName: canViewSensitiveData
       ? project.externalAdvisorName
       : null,
     externalAdvisorEmail: canViewSensitiveData
       ? project.externalAdvisorEmail
       : null,
-    nit: canViewSensitiveData ? (project.nit as string | null) : null,
-    researchGroup: project.researchGroup,
-    socialOrganization: project.socialOrganization,
-    socialLocation: project.socialLocation,
-    projectScope: project.projectScope,
-    monetaryResources: project.monetaryResources,
-    monetaryResourcesDescription: project.monetaryResourcesDescription,
+    nit: canViewSensitiveData ? project.nit : null,
+    researchGroup: privatePreview ? null : project.researchGroup,
+    socialOrganization: privatePreview ? null : project.socialOrganization,
+    socialLocation: privatePreview ? null : project.socialLocation,
+    projectScope: privatePreview ? null : project.projectScope,
+    monetaryResources: privatePreview ? null : project.monetaryResources,
+    monetaryResourcesDescription: privatePreview
+      ? null
+      : project.monetaryResourcesDescription,
     teamRequirements: project.teamRequirements,
     expectedOutcomes: project.expectedOutcomes,
     isProposer: viewer != null && project.proposerUserId === viewer.id,
+    canExpressInterest,
+    viewerInterest,
     phaseApprovals: mapPhaseApprovals(project, canViewSensitiveData),
     evaluationGate: null,
-    deliverables: project.deliverables
-      .slice()
-      .sort((left, right) => left.id - right.id)
-      .map((deliverable) => ({
-        id: deliverable.id,
-        projectId: deliverable.projectId,
-        description: deliverable.description,
-        createdAt: deliverable.createdAt,
-      })),
+    deliverables: privatePreview
+      ? []
+      : project.deliverables
+          .slice()
+          .sort((left, right) => left.id - right.id)
+          .map((deliverable) => ({
+            id: deliverable.id,
+            projectId: deliverable.projectId,
+            description: deliverable.description,
+            createdAt: deliverable.createdAt,
+          })),
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     // Todo lo que sigue es información interna de colaboración: solo la ven

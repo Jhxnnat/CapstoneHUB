@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -24,9 +25,11 @@ import { paginationToSkipTake } from '../common/pagination.dto';
 import { ProjectListQueryDto, ProjectSort } from './dto/project-list-query.dto';
 import {
   AssignableUserResponse,
+  MyProjectInterestResponse,
   MyProjectResponse,
   ProjectActorAssignmentResponse,
   ProjectDetailResponse,
+  ProjectInterestResponse,
   ProjectListResponse,
   ProjectWithRelations,
   mapProjectDetailResponse,
@@ -289,10 +292,34 @@ export class ProjectsService {
       return null;
     }
 
+    const canViewSensitiveData = this.canViewSensitiveData(project, viewer);
+    const viewerInterest = viewer
+      ? await this.prisma.projectInterest.findUnique({
+          where: {
+            projectId_userId: {
+              projectId: project.id,
+              userId: viewer.id,
+            },
+          },
+          select: {
+            id: true,
+            message: true,
+            createdAt: true,
+          },
+        })
+      : null;
+
     const response = mapProjectDetailResponse(
       project,
-      this.canViewSensitiveData(project, viewer),
+      canViewSensitiveData,
       viewer,
+      {
+        canExpressInterest:
+          viewer != null &&
+          viewerInterest == null &&
+          this.authorization.canExpressInterest(viewer, project),
+        viewerInterest,
+      },
     );
 
     if (response.canViewSensitiveData) {
@@ -547,6 +574,192 @@ export class ProjectsService {
       });
     }
     return [...visible.values()];
+  }
+  /**
+   * Registra el interés de un estudiante en un proyecto aprobado. Solo se
+   * permite a estudiantes que no sean el proponente ni formen ya parte del
+   * equipo; el mensaje es opcional.
+   */
+  async addProjectInterest(params: {
+    user: AuthenticatedUser;
+    projectId: number;
+    message?: string;
+  }): Promise<ProjectDetailResponse> {
+    const { user, projectId, message } = params;
+
+    if (
+      !user.roles.includes(UserRole.student) ||
+      this.authorization.canReviewAnyProject(user)
+    ) {
+      throw new ForbiddenException(
+        'Only students can express interest in a project',
+      );
+    }
+
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        ...this.authorization.projectVisibilityWhere(user),
+      },
+      select: {
+        id: true,
+        status: true,
+        proposerUserId: true,
+        actorAssignments: {
+          where: { userId: user.id },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    if (project.status !== ProjectStatus.approved) {
+      throw new ConflictException(
+        'Only approved projects accept new interests',
+      );
+    }
+
+    if (project.proposerUserId === user.id) {
+      throw new ConflictException(
+        'You cannot express interest in your own project',
+      );
+    }
+
+    if (project.actorAssignments.length > 0) {
+      throw new ConflictException('You are already assigned to this project');
+    }
+
+    const existing = await this.prisma.projectInterest.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId: user.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'You have already expressed interest in this project',
+      );
+    }
+
+    try {
+      await this.prisma.projectInterest.create({
+        data: {
+          projectId,
+          userId: user.id,
+          message: message?.trim() || null,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'You have already expressed interest in this project',
+        );
+      }
+      throw error;
+    }
+
+    return this.projectDetailOrThrow(projectId, user);
+  }
+
+  /** Retira el interés propio. Es idempotente. */
+  async removeProjectInterest(
+    user: AuthenticatedUser,
+    projectId: number,
+  ): Promise<void> {
+    await this.prisma.projectInterest.deleteMany({
+      where: { projectId, userId: user.id },
+    });
+  }
+
+  /** Proyectos en los que el usuario expresó interés, del más reciente al más antiguo. */
+  async projectsForUserInterests(
+    user: AuthenticatedUser,
+  ): Promise<MyProjectInterestResponse[]> {
+    const interests = await this.prisma.projectInterest.findMany({
+      where: { userId: user.id },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            startDate: true,
+            location: true,
+            isPrivate: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return interests.map(({ project, message, createdAt }) => ({
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      startDate: project.startDate,
+      location: project.location,
+      isPrivate: project.isPrivate,
+      interestMessage: message,
+      interestedAt: createdAt,
+    }));
+  }
+
+  /** Estudiantes interesados en el proyecto; solo para quien puede asignar actores. */
+  async projectInterests(
+    user: AuthenticatedUser,
+    projectId: number,
+  ): Promise<ProjectInterestResponse[]> {
+    await this.authorization.assertCanAssignActors(user, projectId);
+
+    const interests = await this.prisma.projectInterest.findMany({
+      where: { projectId },
+      include: {
+        user: {
+          select: { id: true, fullName: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return interests.map((interest) => ({
+      id: interest.id,
+      projectId: interest.projectId,
+      message: interest.message,
+      createdAt: interest.createdAt,
+      user: {
+        id: interest.user.id,
+        fullName: interest.user.fullName,
+        email: interest.user.email,
+      },
+    }));
+  }
+
+  /** Descarta un interés; solo para quien puede asignar actores. */
+  async dismissProjectInterest(params: {
+    user: AuthenticatedUser;
+    projectId: number;
+    interestId: number;
+  }): Promise<void> {
+    const { user, projectId, interestId } = params;
+    await this.authorization.assertCanAssignActors(user, projectId);
+
+    const result = await this.prisma.projectInterest.deleteMany({
+      where: { id: interestId, projectId },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException(`Project interest ${interestId} not found`);
+    }
   }
   async createProject(
     user: AuthenticatedUser,
@@ -1217,38 +1430,47 @@ export class ProjectsService {
     if (existingAssignment) {
       throw new ConflictException('User is already assigned to this project');
     }
-    const assignment = await this.prisma.projectActorAssignment.create({
-      data: {
-        role,
-        project: {
-          connect: { id: projectId },
-        },
-        user: {
-          connect: { id: userId },
-        },
-      },
-      select: {
-        id: true,
-        projectId: true,
-        userId: true,
-        role: true,
-        assignedAt: true,
-        project: {
-          select: {
-            id: true,
-            name: true,
+    return this.prisma.$transaction(async (transaction) => {
+      const assignment = await transaction.projectActorAssignment.create({
+        data: {
+          role,
+          project: {
+            connect: { id: projectId },
+          },
+          user: {
+            connect: { id: userId },
           },
         },
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
+        select: {
+          id: true,
+          projectId: true,
+          userId: true,
+          role: true,
+          assignedAt: true,
+          project: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+            },
           },
         },
-      },
+      });
+
+      // Al asignar al estudiante su interés deja de tener sentido: pasa a
+      // formar parte del equipo y desaparece de la lista de interesados.
+      await transaction.projectInterest.deleteMany({
+        where: { projectId, userId },
+      });
+
+      return assignment;
     });
-    return assignment;
   }
   private projectIdFromWhere(where: Prisma.ProjectWhereUniqueInput): number {
     if (typeof where.id !== 'number') {

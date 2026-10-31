@@ -11,6 +11,8 @@ import {
   BadRequestException,
   NotFoundException,
   ParseIntPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { OptionalCurrentUser } from '../auth/optional-current-user.decorator';
@@ -24,12 +26,15 @@ import {
   AssignableUserResponse,
   ProjectActorAssignmentResponse,
   ProjectDetailResponse,
+  ProjectInterestResponse,
   ProjectListResponse,
+  MyProjectInterestResponse,
   MyProjectResponse,
   ProjectUpdateFields,
   ProjectsService,
 } from './projects.service';
 import { CreateProjectActorAssignmentDTO } from './dto/create-project-actor-assignment.dto';
+import { CreateProjectInterestDTO } from './dto/create-project-interest.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDTO } from './dto/update-project.dto';
 import { TransitionProjectStatusDTO } from './dto/transition-project-status.dto';
@@ -67,6 +72,13 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<MyProjectResponse[]> {
     return this.projectService.projectsForUser(user);
+  }
+
+  @Get('mine/interests')
+  async getMyProjectInterests(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<MyProjectInterestResponse[]> {
+    return this.projectService.projectsForUserInterests(user);
   }
 
   @Public()
@@ -247,6 +259,50 @@ export class ProjectsController {
       projectId: id,
       userId: assignmentData.userId,
       role: assignmentData.role,
+    });
+  }
+
+  @Post(':id/interests')
+  async addProjectInterest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() interestData: CreateProjectInterestDTO,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProjectDetailResponse> {
+    return this.projectService.addProjectInterest({
+      user,
+      projectId: id,
+      message: interestData.message,
+    });
+  }
+
+  @Get(':id/interests')
+  async getProjectInterests(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProjectInterestResponse[]> {
+    return this.projectService.projectInterests(user, id);
+  }
+
+  @Delete(':id/interests/me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeProjectInterest(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    return this.projectService.removeProjectInterest(user, id);
+  }
+
+  @Delete(':id/interests/:interestId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async dismissProjectInterest(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('interestId', ParseIntPipe) interestId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    return this.projectService.dismissProjectInterest({
+      user,
+      projectId: id,
+      interestId,
     });
   }
 

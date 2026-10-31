@@ -153,7 +153,9 @@ export class AuthorizationService {
   /**
    * Construye la cláusula `where` que limita los listados de proyectos a los
    * que el espectador puede ver. Sin sesión solo son públicos los finalizados;
-   * con sesión, además, los no privados ya aprobados o en ejecución.
+   * con sesión, además, los no privados ya aprobados o en ejecución. Los
+   * estudiantes también ven los privados aprobados en modo de vista previa y
+   * los proyectos privados donde ya expresaron interés.
    */
   projectVisibilityWhere(
     user: AuthenticatedUser | undefined,
@@ -169,13 +171,57 @@ export class AuthorizationService {
       return {};
     }
 
-    return {
-      OR: [
-        { isPrivate: false, status: { in: PUBLIC_PROJECT_STATUSES } },
-        { proposerUserId: user.id },
-        { actorAssignments: { some: { userId: user.id } } },
-      ],
-    };
+    const conditions: Prisma.ProjectWhereInput[] = [
+      { isPrivate: false, status: { in: PUBLIC_PROJECT_STATUSES } },
+      { proposerUserId: user.id },
+      { actorAssignments: { some: { userId: user.id } } },
+      // Mantiene visible el privado para el estudiante que ya se interesó,
+      // aunque el proyecto haya salido de `approved`.
+      { interests: { some: { userId: user.id } } },
+    ];
+
+    if (user.roles.includes(UserRole.student)) {
+      conditions.push({
+        isPrivate: true,
+        status: ProjectStatus.approved,
+      });
+    }
+
+    return { OR: conditions };
+  }
+
+  /**
+   * Un estudiante puede interesarse en un proyecto aprobado si no es el
+   * proponente ni ya forma parte del equipo. Los revisores globales no usan
+   * este flujo. El interés duplicado y el estado del proyecto se validan en el
+   * servicio, que conoce el registro existente.
+   */
+  canExpressInterest(
+    user: AuthenticatedUser,
+    project: {
+      status: ProjectStatus;
+      proposerUserId: number | null;
+      actorAssignments: readonly { userId: number }[];
+    },
+  ): boolean {
+    if (
+      !user.roles.includes(UserRole.student) ||
+      this.canReviewAnyProject(user)
+    ) {
+      return false;
+    }
+
+    if (project.status !== ProjectStatus.approved) {
+      return false;
+    }
+
+    if (project.proposerUserId === user.id) {
+      return false;
+    }
+
+    return !project.actorAssignments.some(
+      (assignment) => assignment.userId === user.id,
+    );
   }
 
   /**
