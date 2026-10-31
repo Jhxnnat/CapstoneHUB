@@ -153,7 +153,7 @@ export default function AssignedProjects() {
   }
 
   return (
-    <Card>
+    <Card className="mb-6">
       <CardHeader>
         <CardTitle>Mis proyectos</CardTitle>
         <CardDescription>{description}</CardDescription>

@@ -16,6 +16,7 @@ import { canAssignActors } from "../../services/project-permissions";
 import { formatRole, getInitials } from "../../services/utils";
 import { useAuth } from "../../components/auth-provider";
 import AccessNotice from "../../components/access-notice";
+import InterestedStudentsList from "./interested-students-list";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -153,6 +154,7 @@ type AssignmentFormProps = {
   initialError: string | null;
   onErrorChange: (message: string | null) => void;
   onProjectChange: () => Promise<void>;
+  onAssigned: () => void;
 };
 
 function AssignmentForm({
@@ -161,6 +163,7 @@ function AssignmentForm({
   initialError,
   onErrorChange,
   onProjectChange,
+  onAssigned,
 }: Readonly<AssignmentFormProps>) {
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
   const [selectedRole, setSelectedRole] = useState<ActorRole | null>(null);
@@ -228,6 +231,7 @@ function AssignmentForm({
         setSelectedUser(null);
         setSelectedRole(null);
         setSearch("");
+        onAssigned();
         await onProjectChange();
       } catch (error) {
         onErrorChange(
@@ -520,6 +524,7 @@ export default function ProjectActorAssignmentPanel({
   onProjectChange,
 }: ProjectActorAssignmentPanelProps) {
   const { session, isAuthenticated, ready } = useAuth();
+  const [interestsVersion, setInterestsVersion] = useState(0);
 
   const currentUser = session?.user;
 
@@ -545,13 +550,22 @@ export default function ProjectActorAssignmentPanel({
   return (
     <div className="flex flex-col gap-6">
       {canAssign ? (
-        <AssignmentForm
-          projectId={projectId}
-          users={users}
-          initialError={errorMessage}
-          onErrorChange={setErrorMessage}
-          onProjectChange={onProjectChange}
-        />
+        <>
+          <AssignmentForm
+            projectId={projectId}
+            users={users}
+            initialError={errorMessage}
+            onErrorChange={setErrorMessage}
+            onProjectChange={onProjectChange}
+            onAssigned={() => setInterestsVersion((version) => version + 1)}
+          />
+
+          <InterestedStudentsList
+            projectId={projectId}
+            refreshKey={interestsVersion}
+            onProjectChange={onProjectChange}
+          />
+        </>
       ) : null}
 
       <AssignedUsersList assignments={assignments} />

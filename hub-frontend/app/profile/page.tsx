@@ -7,6 +7,7 @@ import { useAuth } from "../components/auth-provider";
 import PageFrame from "../components/page-frame";
 import AssignedProjects from "./assigned-projects";
 import ChangePasswordForm from "./change-password-form";
+import InterestedProjects from "./interested-projects";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +46,7 @@ export default function ProfilePage() {
   const { user } = session;
 
   const showKpis = canViewKpis(user.roles);
+  const isStudent = user.roles.includes("student");
 
   return (
     <PageFrame
@@ -114,6 +116,8 @@ export default function ProfilePage() {
       <ChangePasswordForm />
 
       <AssignedProjects />
+
+      {isStudent ? <InterestedProjects /> : null}
     </PageFrame>
   );
 }
